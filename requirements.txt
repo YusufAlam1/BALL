@@ -1,0 +1,5 @@
+pandas
+scikit-learn
+matplotlib # Not needed as of yet but might be later
+sqlite-utils
+jupyter
