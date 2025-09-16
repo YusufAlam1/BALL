@@ -1,3 +1,6 @@
+if you dont have the requirements installed run
+pip install -r requirements.txt
+
 This is just the way I have things setup to make viewing easier, you don't have to do this
 
 Install the Python extension (by Microsoft) for running notebooks and scripts

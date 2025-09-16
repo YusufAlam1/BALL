@@ -1,5 +1,7 @@
 pandas
 scikit-learn
-matplotlib # Not needed as of yet but might be later
+matplotlib
 sqlite-utils
 jupyter
+nba_api
+requests
