@@ -5,3 +5,4 @@ sqlite-utils
 jupyter
 nba_api
 requests
+selenium
