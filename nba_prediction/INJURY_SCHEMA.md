@@ -25,7 +25,9 @@ erDiagram
         INT injury_id PK
         INT player_id FK
         INT team_id   FK    
-        DATE event_date
+        DATE injury_date
+        VARCHAR acquired
+        VARCHAR relinquished
         VARCHAR body_part   
         VARCHAR diagnosis   
         VARCHAR status 
