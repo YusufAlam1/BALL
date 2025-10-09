@@ -11,3 +11,5 @@ nba_api
 requests
 selenium
 beautifulsoup4
+google
+warnings
