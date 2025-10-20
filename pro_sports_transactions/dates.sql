@@ -29,6 +29,7 @@ durations AS (
     FROM ordered
     WHERE event_type = 'out' AND next_event = 'in'
 )
-SELECT *
+SELECT player, SUM(days_out) AS total_days_out
 FROM durations
-WHERE player LIKE "Giann%"
+WHERE player LIKE {user_player_input}
+GROUP BY player;
