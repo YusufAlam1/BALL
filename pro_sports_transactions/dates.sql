@@ -31,5 +31,5 @@ durations AS (
 )
 SELECT player, SUM(days_out) AS total_days_out
 FROM durations
-WHERE player LIKE {user_player_input}
+WHERE player LIKE "Lebron%"
 GROUP BY player;
