@@ -6,7 +6,7 @@ data_path = "./data"
 csv_path = "./data"
 os.makedirs(csv_path, exist_ok=True)
 
-file = "201601010TOR.json"
+file = "1451695252003.json"
 file_path = os.path.join(data_path, file)
 game_id = file.replace(".json", "")
 
