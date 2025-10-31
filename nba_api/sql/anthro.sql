@@ -6,3 +6,11 @@ SELECT TEMP_PLAYER_ID, PLAYER_ID, PLAYER_NAME
 FROM anthro
 WHERE PLAYER_ID != TEMP_PLAYER_ID AND
     TEMP_PLAYER_ID != '';
+
+SELECT *
+FROM anthro
+WHERe season_year IS NULL;
+
+UPDATE anthro
+SET season_year = '2025'
+WHERE season_year IS NULL;

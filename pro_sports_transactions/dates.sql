@@ -29,7 +29,6 @@ durations AS (
     FROM ordered
     WHERE event_type = 'out' AND next_event = 'in'
 )
-SELECT player, SUM(days_out) AS total_days_out
+SELECT * 
 FROM durations
-WHERE player LIKE "Lebron%"
-GROUP BY player;
+WHERE player LIKE 'LeBron James'
