@@ -1,0 +1,6 @@
+gameId,actionNumber,clock,period,teamId,teamTricode,personId,playerName,playerNameI,xLegacy,yLegacy,shotDistance,shotResult,isFieldGoal,scoreHome,scoreAway,pointsTotal,location,description,actionType,subType,videoAvailable,shotValue,actionId
+0042400407,2,PT12M00.00S,1,0,,0,,,0,0,0,,0,0,0,0,,Start of 1st Period (8:09 PM EST),period,start,0,0,1
+0042400407,4,PT12M00.00S,1,1610612760,OKC,1631096,Holmgren,C. Holmgren,0,0,0,,0,,,0,h,Jump Ball Holmgren vs. Turner: Tip to Haliburton,Jump Ball,,1,0,2
+0042400407,7,PT11M44.00S,1,1610612754,IND,1629614,Nembhard,A. Nembhard,91,106,14,Made,1,0,2,2,v,Nembhard 14' Pullup Jump Shot (2 PTS),Made Shot,Pullup Jump shot,1,2,3
+0042400407,8,PT11M29.00S,1,1610612760,OKC,1631114,Williams,J. Williams,-96,22,10,Missed,1,,,0,h,MISS Jal. Williams 10' Step Back Jump Shot,Missed Shot,Step Back Jump shot,1,2,4
+0042400407,8,PT11M29.00S,1,1610612754,IND,1630174,Nesmith,A. Nesmith,0,0,0,,0,,,0,v,Nesmith BLOCK (1 BLK),,,1,2,5
