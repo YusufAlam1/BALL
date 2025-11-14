@@ -4,11 +4,12 @@ WITH events AS (
     DATE("Date") AS "Date",
     "Team",
     COALESCE(NULLIF(TRIM("Acquired"), ''), NULLIF(TRIM("Relinquished"), '')) AS player,
+    player_id,
     CASE
       WHEN "Relinquished" IS NOT NULL AND TRIM("Relinquished") != '' THEN 'out'
       WHEN "Acquired" IS NOT NULL AND TRIM("Acquired") != '' THEN 'in'
     END AS event_type
-  FROM NBA_injuries
+  FROM injury_list
   WHERE ("Acquired" IS NOT NULL AND TRIM("Acquired") != '')
      OR ("Relinquished" IS NOT NULL AND TRIM("Relinquished") != '')
 ),
@@ -21,6 +22,7 @@ ordered AS (
 ),
 durations AS (
     SELECT
+    player_id,
     player,
     "Date" AS out_date,
     next_date  AS in_date,
