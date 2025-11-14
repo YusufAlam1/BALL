@@ -15,4 +15,4 @@ SQLAlchemy
 sqlite-utils
 thefuzz
 threadpoolctl
-warnings
+# warnings
