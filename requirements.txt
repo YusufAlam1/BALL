@@ -15,4 +15,6 @@ SQLAlchemy
 sqlite-utils
 thefuzz
 threadpoolctl
+pandasql
+polars
 # warnings
