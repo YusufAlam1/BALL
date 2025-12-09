@@ -10,6 +10,7 @@ python-Levenshtein
 requests
 scikit-learn
 scipy
+shap
 selenium
 SQLAlchemy
 sqlite-utils
