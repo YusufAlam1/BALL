@@ -15,3 +15,6 @@ The PDF within this directory is the earliest one that a normal person can acces
 Anything earlier you get this.
 
 ![alt text](image-1.png)
+
+To traverse through injury reports of different dates, using the URL, heres the pattern
+https://ak-static.cms.nba.com/referee/injury/Injury-Report_YYYY-MM-DD_HH(A|P)M.pdf
