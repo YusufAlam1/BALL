@@ -1,0 +1,2 @@
+# This is good if you dont want to track notebook outputs
+# *.ipynb filter=nbstripout

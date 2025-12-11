@@ -8,5 +8,8 @@ misc
 0021500497.csv
 nba_api.db
 
+BALL.db
+*.7z
+*.gz
 
 */__pycache__
