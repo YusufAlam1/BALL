@@ -19,4 +19,5 @@ pandasql
 polars
 psycopg2-binary
 python-dotenv
+supabase
 # warnings

@@ -1,43 +1,39 @@
-import sqlite3
 import psycopg2
 from dotenv import load_dotenv
 import os
 import pandas as pd
+from supabase import create_client
 
 load_dotenv()
 
-sqlite_conn = sqlite3.connect("Ball.db")
-sqlite_cursor = sqlite_conn.cursor()
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-pg_conn = psycopg2.connect(
-    dbname="BALL",
-    user="postgres",
-    password=os.getenv("PGSQL-PASS"),
-    host="localhost",
-    port=5432
-)
-pg_cursor = pg_conn.cursor()
+# Create Supabase client
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 # players table data transfer
-sqlite_cursor.execute("SELECT id, full_name, first_name, last_name, is_active FROM players")
-rows = sqlite_cursor.fetchall()
+df_players = pd.read_csv("nba_api/data/players.csv")
+df_players = df_players.where(pd.notnull(df_players), None)
 
-insert_query = """
-    INSERT INTO players (player_id, full_name, first_name, last_name, is_active)
-    VALUES (%s, %s, %s, %s, %s)
-"""
+# potentially redundant type conversion for safety
+df_players['is_active'] = df_players['is_active'].astype(bool)
 
-for row in rows:
-    row = list(row) # default type for row is tuple which is immutable
-    if isinstance(row[4], int):
-        row[4] = bool(row[4]) # sqlite may store bools as 0/1
-    pg_cursor.execute(insert_query, row)
+for _, row in df_players.iterrows():
+    supabase.table("players").insert({
+        "player_id": row["id"],
+        "full_name": row["full_name"],
+        "first_name": row["first_name"],
+        "last_name": row["last_name"],
+        "is_active": row["is_active"]
+    }).execute()
+
 
 # anthro table data insertion
-df = pd.read_csv("nba_api/data/draft_combine_anthro.csv")
+df_anthro = pd.read_csv("nba_api/data/draft_combine_anthro.csv")
 
-df = df[[
+df_anthro = df_anthro[[
     "PLAYER_ID",
     "HEIGHT_WO_SHOES",
     "HEIGHT_WO_SHOES_FT_IN",
@@ -53,7 +49,8 @@ df = df[[
     "HAND_WIDTH"
 ]]
 
-df.columns = [
+# rename to match DB
+df_anthro.columns = [
     "player_id",
     "height_w_o_shoes",
     "height_w_o_shoes_ft_in",
@@ -69,29 +66,7 @@ df.columns = [
     "hand_width"
 ]
 
-# replace empty values with Python None which gets mapped to NULL in PGSQL
-df = df.where(pd.notnull(df), None)
+df_anthro = df_anthro.where(pd.notnull(df_anthro), None)
 
-insert_query = """
-INSERT INTO anthro (
-    player_id,
-    height_w_o_shoes,
-    height_w_o_shoes_ft_in,
-    height_w_shoes,
-    height_w_shoes_ft_in,
-    weight,
-    wingspan,
-    wingspan_ft_in,
-    standing_reach,
-    standing_reach_ft_in,
-    body_fat_pct,
-    hand_length,
-    hand_width
-)
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-ON CONFLICT (player_id) DO NOTHING;
-"""
-
-for _, row in df.iterrows():
-    # row is still Panda.series, conver to basic tuple
-    pg_cursor.execute(insert_query, tuple(row))
+for _, row in df_anthro.iterrows():
+    supabase.table("anthro").insert(row.to_dict()).execute()
