@@ -36,7 +36,6 @@ speed AS (
 -- SELECT player_id,
 --     full_name,
 --     AVG("delta_v_sq_(km2_per_h2)") AS "average_speed_(km^2/h^2)"
-
 SELECT *,
     AVG("delta_v_sq_(km2_per_h2)") OVER(
         PARTITION BY player_id 
@@ -44,3 +43,5 @@ SELECT *,
         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS "average_speed_(km^2/h^2)"
 FROM speed  ;
 -- GROUP BY player_id;
+
+-- Commented out is if you wanted the aggregated average speed per player, instead of a rolling window
