@@ -1,13 +1,12 @@
-import psycopg2
 from dotenv import load_dotenv
 import os
 import pandas as pd
-from supabase import create_client
+from supabase import create_client, Client
 
 load_dotenv()
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_URL = os.getenv("SUPABASE-URL")
+SUPABASE_KEY = os.getenv("SUPABASE-API-KEY")
 
 # Create Supabase client
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
