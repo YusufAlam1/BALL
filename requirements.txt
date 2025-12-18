@@ -17,4 +17,6 @@ thefuzz
 threadpoolctl
 pandasql
 polars
+psycopg2-binary
+python-dotenv
 # warnings
