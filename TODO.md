@@ -4,4 +4,12 @@ Some things we need TODO:
 
 2. Migration from SQLite -> Postgres
 
-3. Feature - is_repeat
+3. Getting Features ready for modeling
+
+5. Using Features in model
+
+5. Data visualization
+
+6. Presentation
+
+7. PbP Scrape
