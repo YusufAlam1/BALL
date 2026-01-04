@@ -4,29 +4,29 @@
 
 WITH region_count AS (
     SELECT player_id,
-        player_name,
-        "Date",
-        "Status",
+        injury_date,
+        return_status,
         diagnosis,
         body_region,
         COUNT(body_region) OVER (
             PARTITION BY player_id, body_region 
-            ORDER BY "date"
+            ORDER BY injury_date
         ) AS injury_count
-    FROM injury_list
+    FROM injuries
     WHERE 
         body_region IS NOT NULL AND 
-        player_id NOT LIKE ''
+        player_id IS NOT NULL
 )
 -- , repeat_determine AS (
 SELECT *,
+    full_name,
     CASE
     WHEN injury_count = 1 THEN 'N'
     WHEN injury_count > 1 THEN 'Y'
-    ELSE 0
     END AS is_repeat
-FROM region_count;
--- )
+FROM region_count r
+JOIN players p ON p.player_id = r.player_id ;
+-- ) 
 -- SELECT *
 -- FROM repeat_determine
 -- WHERE is_repeat = 'Y';

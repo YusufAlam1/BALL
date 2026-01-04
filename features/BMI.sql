@@ -1,4 +1,9 @@
-SELECT player_id,
-    player_name,
-    ROUND((weight*0.453592) / (height_wo_shoes*0.0254 * height_wo_shoes*0.0254), 2) AS BMI
-FROM anthro;
+SELECT p.player_id,
+    full_name,
+    ROUND(
+    ((weight * 0.453592) /
+     (height_wo_shoes * 0.0254 * height_wo_shoes * 0.0254))::numeric,
+    2
+  ) AS bmi
+FROM anthro a
+JOIN players p ON a.player_id = p.player_id;;

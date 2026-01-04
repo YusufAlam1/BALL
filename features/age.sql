@@ -1,4 +1,5 @@
-SELECT id,
+SELECT player_id,
     full_name,
-    CAST(Julianday('now') - Julianday(birthdate) AS INTEGER) AS age_in_days
-FROM players
+    (CURRENT_DATE - birthdate) AS age_in_days
+FROM players    
+WHERE is_active = 'True';
