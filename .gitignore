@@ -13,3 +13,5 @@ BALL.db
 *.gz
 
 */__pycache__
+
+.env
