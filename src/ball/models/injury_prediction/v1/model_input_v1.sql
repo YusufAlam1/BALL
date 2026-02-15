@@ -43,4 +43,5 @@ FROM player_game_stats g
 JOIN anthro a ON a.player_id = g.player_id
 JOIN players p ON p.id = g.player_id
 JOIN game_dates gd ON gd.game_id = g.game_id
-WHERE speed != 0 AND distance != 0;
+WHERE speed != 0 AND distance != 0
+ORDER BY a.player_id, g.game_id;
