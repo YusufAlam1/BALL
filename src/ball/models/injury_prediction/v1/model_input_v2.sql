@@ -11,7 +11,10 @@ SELECT
     body_fat_pct,
     hand_length,
     hand_width,
-    
+    "minutes",
+    usagePercentage,
+    pace,
+    possessions,
     CASE WHEN (g.game_id, a.player_id) IN (
         SELECT
             ld.game_id_before,
@@ -43,4 +46,6 @@ FROM player_game_stats g
 JOIN anthro a ON a.player_id = g.player_id
 JOIN players p ON p.id = g.player_id
 JOIN game_dates gd ON gd.game_id = g.game_id
+JOIN game_stats_advanced gsa ON gsa.gameid = g.game_id 
+    AND gsa.personId = g.player_id
 WHERE speed != 0 AND distance != 0;
