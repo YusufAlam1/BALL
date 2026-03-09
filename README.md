@@ -1,6 +1,6 @@
 # BALL
 
-Probabilistic injury risk prediction for NBA players using historical game data, player biometrics, and injury records.
+Probabilistic injury risk prediction for NBA players using historical game data, player biometrics, and injury records
 
 ---
 
@@ -8,11 +8,9 @@ Probabilistic injury risk prediction for NBA players using historical game data,
 
 Player injuries remain the single largest source of uncontrollable cost in professional basketball. A single season-ending injury to a max-contract player can cost a franchise upwards of $30 million in sunk salary, and the downstream effects on team performance compound well beyond the balance sheet. Despite this, load management decisions across the league are still driven largely by intuition, rigid rest schedules, and how a player reports feeling on a given day.
 
-BALL is a research project that aims to replace that guesswork with a quantifiable, player-specific injury risk score. The core model takes a configurable window of recent game data for a player and outputs a day-by-day probability curve estimating how likely that player is to sustain an injury over each of the following days.
+BALL's research project aims to replace that guesswork with a quantifiable, player-specific injury risk score. The core model takes a configurable window of recent game data for a player and outputs a day-by-day probability curve estimating how likely that player is to sustain an injury over each of the following days.
 
-As a concrete example: given the previous 14 days of game data for a player -- minutes played, speed, distance covered, usage rate, and other workload and performance indicators -- the model produces an injury probability estimate for each of the next 14 days. Rather than a single binary "at risk / not at risk" flag, the output is a temporal curve that reveals how risk accumulates and where it peaks.
-
-A Streamlit-based proof-of-concept application demonstrates this pipeline end to end. A user inputs a player name (with fuzzy matching), selects a lookback window and a forward horizon, and receives a table and chart of daily injury probabilities.
+As a concrete example: given the previous 14 days of game data for a player: minutes played, speed, distance covered, usage rate, and other workload and performance indicators, the model produces an injury probability estimate for each of the next 14 days. Rather than a single binary "at risk / not at risk" flag, the output is a temporal curve that reveals how risk accumulates and where it peaks.
 
 ---
 
