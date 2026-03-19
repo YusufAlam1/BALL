@@ -8,9 +8,9 @@ Runs the full pipeline:
   4. Write change events to BALL.db (loader)
 
 Usage:
-    python pipeline.py
-    python pipeline.py --start 2024-01-01
-    python pipeline.py --start 2024-01-01 --end 2024-03-01
+    python3 src/ball/scripts/nba_injury_report_ETL/pipeline.py
+    python src/ball/scripts/nba_injury_report_ETL/pipeline.py --start 2026-03-03
+    python src/ball/scripts/nba_injury_report_ETL/pipeline.py --start 2026-03-03 --start 2026-03-09
 """
 
 import argparse
@@ -22,6 +22,27 @@ from loader import get_connection, write_events
 from parser import parse_pdf
 from transform import diff_states
 
+#helps me to confirm whether or not new players that get added actually appear in later pdfs
+def _log_first_change(events: list[dict], prev_date: date | None, curr_date: date) -> None:
+    """Print one example new entry and one example cleared entry for the day."""
+    added   = [e for e in events if e["Relinquished"] and not e["Acquired"]]
+    cleared = [e for e in events if e["Acquired"] and not e["Relinquished"]]
+
+    if not added and not cleared:
+        return
+
+    print(f"  [{curr_date}] {len(events)} changes  (prev PDF: {prev_date})")
+
+    if added:
+        e = added[0]
+        print(f"    + NEW    {e['player_name']} ({e['Team']})  |  reason: {e['Notes'] or '—'}")
+        print(f"             not in {prev_date} → appeared in {curr_date}")
+
+    if cleared:
+        e = cleared[0]
+        print(f"    - CLEARED {e['player_name']} ({e['Team']})  |  last reason: {e['Notes'] or '—'}")
+        print(f"             was in {prev_date} → gone from {curr_date}")
+
 
 def run(start: date = START_DATE, end: date | None = None) -> None:
     end = end or date.today()
@@ -30,6 +51,7 @@ def run(start: date = START_DATE, end: date | None = None) -> None:
     print(f"DB connected. Running {start} → {end}")
 
     previous_state: dict = {}
+    previous_date: date | None = None
     current_date = start
     first_pdf_found = False
 
@@ -62,11 +84,11 @@ def run(start: date = START_DATE, end: date | None = None) -> None:
             print(f"  [{current_date}] Seed — {len(events)} players inserted as initial state")
         else:
             events = diff_states(previous_state, current_state, current_date)
-            if events:
-                print(f"  [{current_date}] {len(events)} changes")
+            _log_first_change(events, previous_date, current_date)
 
         write_events(events, conn)
         previous_state = current_state
+        previous_date = current_date
         current_date += timedelta(days=1)
 
     conn.close()
