@@ -50,3 +50,36 @@ ORDER BY injury_count DESC, "Date" ASC;
 -- 10.28.2015.SAS.at.OKC
 -- 10.28.2015.UTA.at.DET
 -- 10.28.2015.WAS.at.ORL
+
+
+-- ==================== POSTGRES / SUPABASE VERSION ====================
+-- injury_list -> injuries + players + teams JOINs
+-- "Date" -> injury_date, team (text) -> teams.abbreviation, body_region -> body_part
+
+WITH injury_window AS (
+    SELECT i.injury_id,
+        i.injury_date,
+        t.abbreviation AS team,
+        p.full_name AS player_name,
+        i.player_id,
+        i.diagnosis,
+        i.body_part AS body_region,
+        COUNT(i.injury_id) OVER (PARTITION BY i.injury_date) AS injury_count
+    FROM injuries i
+    JOIN players p ON p.player_id = i.player_id
+    LEFT JOIN teams t ON t.team_id = i.team_id
+    WHERE (i.diagnosis IS NOT NULL OR
+        i.body_part IS NOT NULL) AND
+        i.injury_date BETWEEN '2015-10-01' AND '2016-01-23'
+)
+SELECT injury_id,
+    injury_date,
+    team,
+    player_name,
+    player_id,
+    diagnosis,
+    body_region,
+    injury_count
+FROM injury_window
+WHERE injury_count BETWEEN 1 AND 14
+ORDER BY injury_count DESC, injury_date ASC;

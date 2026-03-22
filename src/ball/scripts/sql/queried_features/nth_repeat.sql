@@ -26,7 +26,35 @@ SELECT *,
     END AS is_repeat
 FROM region_count r
 JOIN players p ON p.player_id = r.player_id ;
--- ) 
+-- )
 -- SELECT *
 -- FROM repeat_determine
 -- WHERE is_repeat = 'Y';
+
+
+-- ==================== POSTGRES / SUPABASE VERSION ====================
+-- body_region -> body_part (per postgre_schema.sql)
+
+WITH region_count AS (
+    SELECT player_id,
+        injury_date,
+        return_status,
+        diagnosis,
+        body_part,
+        COUNT(body_part) OVER (
+            PARTITION BY player_id, body_part
+            ORDER BY injury_date
+        ) AS injury_count
+    FROM injuries
+    WHERE
+        body_part IS NOT NULL AND
+        player_id IS NOT NULL
+)
+SELECT *,
+    p.full_name,
+    CASE
+    WHEN injury_count = 1 THEN 'N'
+    WHEN injury_count > 1 THEN 'Y'
+    END AS is_repeat
+FROM region_count r
+JOIN players p ON p.player_id = r.player_id;

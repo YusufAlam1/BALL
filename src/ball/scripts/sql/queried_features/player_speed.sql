@@ -45,3 +45,44 @@ FROM speed;
 -- GROUP BY player_id;
 
 -- Commented out is if you wanted the aggregated average speed per player, instead of a rolling window
+
+
+-- ==================== POSTGRES / SUPABASE VERSION ====================
+-- GPS -> sportsvu, players.id -> players.player_id
+-- game_clock is TIME in Postgres so we EXTRACT(EPOCH) for arithmetic
+-- Postgres supports SQRT so we can compute actual speed (km/h) instead of squared
+
+WITH end_start AS (
+    SELECT
+        s.player_id,
+        p.full_name,
+        s.event_id,
+        EXTRACT(EPOCH FROM s.game_clock) AS t1,
+        s.x_loc AS x1,
+        s.y_loc AS y1,
+        LAG(s.x_loc) OVER (PARTITION BY s.player_id ORDER BY s.event_id, s.game_clock DESC) AS x2,
+        LAG(s.y_loc) OVER (PARTITION BY s.player_id ORDER BY s.event_id, s.game_clock DESC) AS y2,
+        LAG(EXTRACT(EPOCH FROM s.game_clock)) OVER (PARTITION BY s.player_id ORDER BY s.event_id, s.game_clock DESC) AS t2
+    FROM sportsvu s
+    JOIN players p ON p.player_id = s.player_id
+)
+,
+speed AS (
+    SELECT *,
+            CASE WHEN (t2 - t1) != 0 THEN
+                SQRT(((x2 - x1)*(x2 - x1)) + ((y2 - y1)*(y2 - y1))) / ABS(t2 - t1) * 0.0003048 * 3600
+            END AS "delta_v_(km_per_h)"
+    FROM end_start
+)
+-- SELECT player_id,
+--     full_name,
+--     AVG("delta_v_(km_per_h)") AS "average_speed_(km/h)"
+SELECT *,
+    AVG("delta_v_(km_per_h)") OVER(
+        PARTITION BY player_id
+        ORDER BY event_id, t1 DESC
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS "average_speed_(km/h)"
+FROM speed;
+-- GROUP BY player_id;
+
+-- Commented out is if you wanted the aggregated average speed per player, instead of a rolling window
