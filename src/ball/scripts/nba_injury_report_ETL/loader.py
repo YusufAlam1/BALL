@@ -31,7 +31,7 @@ def _init_schema(conn: sqlite3.Connection) -> None:
         """
         CREATE TABLE IF NOT EXISTS injury_list2 (
             injury_id    INTEGER PRIMARY KEY AUTOINCREMENT,
-            Date         DATE,
+            report_date  DATE,
             Team         TEXT,
             Acquired     TEXT,
             Relinquished TEXT,
@@ -40,18 +40,13 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             player_id    INTEGER,
             body_region  TEXT,
             diagnosis    TEXT,
-            status       TEXT,
-            UNIQUE (Date, player_name, Team)
+            status         TEXT,
+            next_game_date DATE,
+            matchup        TEXT,
+            UNIQUE (report_date, player_name, Team)
         )
         """
     )
-    # Safe migration for older DBs that predate these columns
-    for col_def in ("diagnosis TEXT", "status TEXT"):
-        try:
-            conn.execute(f"ALTER TABLE injury_list2 ADD COLUMN {col_def}")
-        except sqlite3.OperationalError:
-            pass  # Column already exists — safe to ignore
-
     conn.commit()
 
 
@@ -62,11 +57,11 @@ def write_events(events: list[dict], conn: sqlite3.Connection) -> None:
     conn.executemany(
         """
         INSERT OR IGNORE INTO injury_list2
-            (Date, Team, Acquired, Relinquished, Notes, player_name, player_id,
-             body_region, diagnosis, status)
+            (report_date, Team, Acquired, Relinquished, Notes, player_name, player_id,
+             body_region, diagnosis, status, next_game_date, matchup)
         VALUES
-            (:Date, :Team, :Acquired, :Relinquished, :Notes, :player_name, :player_id,
-             :body_region, :diagnosis, :status)
+            (:report_date, :Team, :Acquired, :Relinquished, :Notes, :player_name, :player_id,
+             :body_region, :diagnosis, :status, :next_game_date, :matchup)
         """,
         events,
     )

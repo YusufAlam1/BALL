@@ -59,7 +59,7 @@ def export_daily_csv(conn, export_date: date) -> None:
     INJURY_REPORTS_DIR.mkdir(exist_ok=True)
     out_path = INJURY_REPORTS_DIR / f"injury_report_{export_date}.csv"
     cursor = conn.execute(
-        "SELECT * FROM injury_list2 WHERE Date = ?", (str(export_date),)
+        "SELECT * FROM injury_list2 WHERE report_date = ?", (export_date.isoformat(),)
     )
     rows = cursor.fetchall()
     if not rows:

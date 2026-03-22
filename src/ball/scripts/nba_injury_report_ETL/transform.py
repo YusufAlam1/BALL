@@ -138,6 +138,14 @@ def extract_diagnosis(reason: str) -> str | None:
 # Event builder
 # ---------------------------------------------------------------------------
 
+def _normalize_name(raw: str) -> str:
+    """Converts "Last,First" → "First Last"."""
+    if "," in raw:
+        last, first = raw.split(",", 1)
+        return f"{first.strip()} {last.strip()}"
+    return raw.strip()
+
+
 def build_events(current: dict, report_date: date) -> list[dict]:
     """
     One row per player per day, driven entirely by status:
@@ -157,17 +165,20 @@ def build_events(current: dict, report_date: date) -> list[dict]:
         reason = data["reason"] or ""
         is_g_league = reason.upper().replace(" ", "").startswith("GLEAGUE")
         notes = reason if not is_available or is_g_league else "Playing tonight"
+        normalized_name = _normalize_name(player)
         events.append({
-            "Date":         report_date,
-            "Team":         team,
-            "Acquired":     player if is_available else None,
-            "Relinquished": None  if is_available else player,
-            "Notes":        notes,
-            "player_name":  player,
-            "player_id":    None,
-            "body_region":  None if is_available else data["body_region"],
-            "diagnosis":    None if is_available else data["diagnosis"],
-            "status":       data["status"],
+            "report_date":    report_date.isoformat(),
+            "Team":           team,
+            "Acquired":       normalized_name if is_available else None,
+            "Relinquished":   None if is_available else normalized_name,
+            "Notes":          notes,
+            "player_name":    normalized_name,
+            "player_id":      None,
+            "body_region":    None if is_available else data["body_region"],
+            "diagnosis":      None if is_available else data["diagnosis"],
+            "status":         data["status"],
+            "next_game_date": data["game_date"].isoformat() if data.get("game_date") else None,
+            "matchup":        data["matchup"].replace("@", " @ ") if data.get("matchup") else None,
         })
 
     return events

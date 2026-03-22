@@ -13,7 +13,7 @@ Two PDF formats exist across seasons:
 
 import io
 import re
-from datetime import date
+from datetime import date, datetime
 
 import pdfplumber
 
@@ -72,30 +72,37 @@ def _split_player_entries(line: str) -> list[str]:
     return result
 
 
-def _extract_team_from_tokens(tokens: list[str]) -> str | None:
-    """Strips date/time/matchup tokens and returns whatever's left as the team name."""
+def _extract_team_from_tokens(tokens: list[str]) -> tuple[str | None, date | None, str | None]:
+    """Strips metadata tokens and returns (team, game_date, matchup)."""
     team_tokens = []
+    game_date = None
+    matchup = None
     for token in tokens:
         if DATE_RE.match(token):
+            try:
+                game_date = datetime.strptime(token, "%m/%d/%Y").date()
+            except ValueError:
+                pass
             continue
         if TIME_RE.match(token):
             continue
-        if token == '(ET)':          # older PDFs have this as a standalone token
+        if token == '(ET)':
             continue
         if MATCHUP_RE.match(token):
+            matchup = token
             continue
         team_tokens.append(token)
-    return ' '.join(team_tokens) if team_tokens else None
+    return ' '.join(team_tokens) if team_tokens else None, game_date, matchup
 
 
-def _parse_player_line(line: str) -> tuple[str | None, str | None, str | None, str | None]:
-    """Returns (player, status, reason_inline, team) from a player line, or all None if it's not one."""
+def _parse_player_line(line: str) -> tuple[str | None, str | None, str | None, str | None, date | None, str | None]:
+    """Returns (player, status, reason_inline, team, game_date, matchup) from a player line, or all None if not one."""
     if ',' not in line:
-        return None, None, None, None
+        return None, None, None, None, None, None
 
     m = STATUS_RE.search(line)
     if not m:
-        return None, None, None, None
+        return None, None, None, None, None, None
 
     status = m.group(1)
     before_status = line[:m.start()].strip()
@@ -116,7 +123,7 @@ def _parse_player_line(line: str) -> tuple[str | None, str | None, str | None, s
             break
 
     if player is None:
-        return None, None, None, None
+        return None, None, None, None, None, None
 
     name_start = player_idx
 
@@ -137,10 +144,10 @@ def _parse_player_line(line: str) -> tuple[str | None, str | None, str | None, s
             if next_tok and not STATUS_RE.match(next_tok):
                 player = player + next_tok  # "Banton,Dalano" or "Bagley III,Marvin"
 
-    before_player  = tokens[:name_start]
-    team_in_line   = _extract_team_from_tokens(before_player)
+    before_player              = tokens[:name_start]
+    team_in_line, game_date, matchup = _extract_team_from_tokens(before_player)
 
-    return player, status, after_status, team_in_line
+    return player, status, after_status, team_in_line, game_date, matchup
 
 
 def _is_player_line(line: str) -> bool:
@@ -159,6 +166,8 @@ def parse_pdf(pdf_bytes: bytes, report_date: date) -> dict:
 
     state: dict = {}
     current_team: str | None = None
+    current_game_date: date | None = None
+    current_matchup: str | None = None
     pending_reason_prefix: str | None = None
 
     i = 0
@@ -167,14 +176,27 @@ def parse_pdf(pdf_bytes: bytes, report_date: date) -> dict:
         i += 1
 
         if _is_skip_line(line):
+            # Still extract any date from skip lines (e.g. "03/04/2022 ... NOT YET SUBMITTED")
+            # so current_game_date stays accurate even when the only line with a new date is skipped.
+            for token in line.split():
+                if DATE_RE.match(token):
+                    try:
+                        current_game_date = datetime.strptime(token, "%m/%d/%Y").date()
+                    except ValueError:
+                        pass
             pending_reason_prefix = None
             continue
 
-        player, status, reason_inline, team_in_line = _parse_player_line(line)
+        player, status, reason_inline, team_in_line, game_date, matchup = _parse_player_line(line)
 
         if player and status:
             if team_in_line:
                 current_team = team_in_line
+            if game_date:
+                current_game_date = game_date
+            if matchup:
+                current_matchup = matchup
+
 
             reason_parts = []
 
@@ -201,6 +223,8 @@ def parse_pdf(pdf_bytes: bytes, report_date: date) -> dict:
                     "body_region": extract_body_region(reason),
                     "diagnosis":   extract_diagnosis(reason),
                     "report_date": report_date,
+                    "game_date":   current_game_date,
+                    "matchup":     current_matchup,
                 }
         else:
             # Not a player line — could be a reason prefix for the next player
