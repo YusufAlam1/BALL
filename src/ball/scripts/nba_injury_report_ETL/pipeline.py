@@ -7,6 +7,7 @@ HOW TO RUN THE ETL EXAMPLES:
         python3 pipeline.py                                        # full backfill from START_DATE
         python3 pipeline.py --start 2026-03-01                     # from a date to today
         python3 pipeline.py --start 2026-03-01 --end 2026-03-05   # specific range
+        python3 pipeline.py --start 2022-10-18 --end 2023-04-09   # 2022-23 regular season
 """
 
 import argparse
