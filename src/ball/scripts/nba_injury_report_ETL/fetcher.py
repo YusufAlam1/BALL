@@ -1,5 +1,13 @@
 """
-Builds NBA injury report URLs and fetches PDF bytes.
+Fetches the daily NBA injury report PDF.
+
+Reports are published throughout game days in ~15-minute intervals. We only need
+the latest one — it has the most current statuses for everyone. We try times from
+latest to earliest and stop at the first hit.
+
+URL formats (changed over the years):
+    Newer (2025-26+): Injury-Report_YYYY-MM-DD_HH_MMam|pm.pdf  e.g. _11_00PM
+    Older (pre-2025):  Injury-Report_YYYY-MM-DD_HHam|pm.pdf     e.g. _11PM
 """
 
 import time
@@ -10,15 +18,17 @@ import requests
 from config import HEADERS, REPORT_TIMES, SLEEP_BETWEEN_REQUESTS
 
 
-def build_url(d: date, hour: str, minute: str, meridiem: str) -> str:
-    return (
-        f"https://ak-static.cms.nba.com/referee/injury/"
-        f"Injury-Report_{d.strftime('%Y-%m-%d')}_{hour}_{minute}{meridiem}.pdf"
-    )
+def _build_urls(d: date, hour: str, minute: str, meridiem: str) -> list[str]:
+    """Returns both URL formats for a given time — newer (with minutes) first, then older."""
+    base = f"https://ak-static.cms.nba.com/referee/injury/Injury-Report_{d.strftime('%Y-%m-%d')}"
+    return [
+        f"{base}_{hour}_{minute}{meridiem}.pdf",  # newer format: _11_00PM
+        f"{base}_{hour}{meridiem}.pdf",            # older format: _11PM
+    ]
 
 
 def fetch_pdf(url: str) -> bytes | None:
-    """GET a URL and return raw bytes if it's a PDF, else None."""
+    """Returns raw PDF bytes if the URL resolves, otherwise None."""
     try:
         r = requests.get(url, headers=HEADERS, timeout=10)
         if r.status_code == 200 and "pdf" in r.headers.get("Content-Type", "").lower():
@@ -29,15 +39,13 @@ def fetch_pdf(url: str) -> bytes | None:
 
 
 def fetch_pdf_for_date(d: date) -> bytes | None:
-    """
-    Try each candidate time for a given date, return the first successful PDF.
-    Returns None if no report found for that date.
-    """
+    """Tries each time slot latest-first and returns the first PDF found, or None if no games that day."""
     for hour, minute, meridiem in REPORT_TIMES:
-        url = build_url(d, hour, minute, meridiem)
-        pdf_bytes = fetch_pdf(url)
-        time.sleep(SLEEP_BETWEEN_REQUESTS)
-        if pdf_bytes:
-            print(f"  [{d}] Found: {hour}:{minute}{meridiem}")
-            return pdf_bytes
+        for url in _build_urls(d, hour, minute, meridiem):
+            pdf_bytes = fetch_pdf(url)
+            time.sleep(SLEEP_BETWEEN_REQUESTS)
+            if pdf_bytes:
+                print(f"  [{d}] Found: {hour}:{minute}{meridiem}")
+                return pdf_bytes
+
     return None
