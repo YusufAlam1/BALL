@@ -4,7 +4,8 @@ import os
 from pathlib import Path
 import sys
 
-# I love python and needing to add to the search list - maybe we could add connect.py to the root for ease of access
+# I love python and needing to add to the search list - maybe we could add connect.py to the same directory (copy paste)?
+# Python only searches in packages and in the current directory "sys.path", but we can add to the search absolute paths resolve()
 sys.path.append(str(Path(__file__).resolve().parent.parent / "db")) 
 
 from connect import supabase
