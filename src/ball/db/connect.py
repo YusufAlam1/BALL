@@ -17,5 +17,6 @@ if not url or not key:
 supabase: Client = create_client(url, key)
 print("Client created")
 
-response = supabase.table("your_table_name").select("*").limit(1).execute()
-print("Data:", response.data)
+# Example Usage
+# response = supabase.table("teams").select("*").limit(1).execute()
+# print("Data:", response.data)
