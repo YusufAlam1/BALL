@@ -15,3 +15,5 @@ BALL.db
 */__pycache__
 
 .env
+
+./proof_of_concept_use_case
