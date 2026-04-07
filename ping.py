@@ -5,5 +5,9 @@ Used a GitHub Workflow to allow daily execution
 
 from connect import supabase
 
-supabase.table("players").select("*").limit(1).execute()
+res = supabase.table("players").select("*").limit(1).execute()
 print("Pinged Supabase")
+if res.data:
+    print(res.data[0])
+else:
+    print("Error occured")
