@@ -211,4 +211,26 @@ that don't exist yet.)*
 
 ---
 
+## Phase 6 — Dashboard (2026-06-10)
+
+- `src/ball/app/app.py` — the Streamlit POC rebuilt on top of `ball.pipeline`
+  (the old `models/.../streamlit_app.py` had a broken import path and read a
+  DB that no longer exists; it stays in place as reference per the
+  leave-models-alone rule). The app now renders the repo's own "planned
+  additions": the **day-by-day risk curve** (signature output), the **workload
+  timeline with injury markers**, and the **SHAP top-drivers** chart (reads the
+  explain step's output when present). Model family selectable
+  (GB winner / LR baseline); fuzzy player search via thefuzz; honest caption
+  that scores are relative risk, not calibrated probabilities.
+- Artifacts/DB come from `$BALL_ARTIFACTS_DIR`/`$BALL_DB_PATH` — the same
+  volumes the pipeline writes, so the compose `app` service reads what the
+  trainer wrote with no rebuild.
+- **Verified headlessly** with Streamlit's `AppTest`: renders, fuzzy-matches
+  "LeBron James", predicts off his last 14 days (6 games, window ending
+  2016-04-11), renders the probability table — no exceptions. That check is
+  committed as `tests/test_app.py` (auto-skips when artifacts are absent;
+  13/13 tests green locally).
+
+---
+
 *(Later phases appended below as they complete.)*
