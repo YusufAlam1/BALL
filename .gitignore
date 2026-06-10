@@ -12,7 +12,13 @@ BALL.db
 *.7z
 *.gz
 
-*/__pycache__
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# pipeline outputs (live on volumes in Docker, repo-relative locally)
+artifacts/
 
 .env
 

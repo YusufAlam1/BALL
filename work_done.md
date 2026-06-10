@@ -108,4 +108,61 @@ Confirmed baseline (temporal 80/20 hold-out, season 2015-10-27 → 2016-04-13,
 
 ---
 
+## Phase 3 — Extract the pipeline (2026-06-10) ★ the big one
+
+### What was built — `src/ball/pipeline/`
+
+| Module | Role | CLI |
+|---|---|---|
+| `config.py` | env-driven paths (`BALL_DB_PATH`, `BALL_ARTIFACTS_DIR`), V2 defaults (X=Y=14, seed 42, 80/20 temporal) | — |
+| `bootstrap.py` | sample CSVs → SQLite (`model_input`, `game_dates`, `players`) | `python -m ball.pipeline.bootstrap` |
+| `data.py` | SQLite access; reproduces `evaluate_v2.load_data()` exactly (rowid-ordered reads keep CSV row order) | — |
+| `targets.py` | per-forward-day binary targets (strictly-after / inclusive-end rule) | — |
+| `features.py` | X-day window mean/std/min/max aggregation + dataset assembly | `…features --lookback 14 --horizon 14` |
+| `train.py` | temporal split + per-day LogReg & GradientBoosting; saves preprocess/models/meta | `…train --horizon 14 --model both` |
+| `evaluate.py` | per-day ROC-AUC on the hold-out + **automatic comparison against the frozen reference** (exits 1 on drift) | `…evaluate` |
+| `explain.py` | SHAP beeswarm + mean-abs-SHAP ranking for a chosen day | `…explain --day 7` |
+| `reference/v2_results_2015-16.csv` | frozen reference numbers (= the presentation table) | — |
+
+Plus `tests/` (12 tests): target boundary semantics, window aggregation values,
+dataset round-trip, and the **temporal-split guard** — train dates must all
+precede test dates, and `train.py`'s source may not contain
+`train_test_split`/`shuffle(`/`permutation(`.
+
+The math was ported **verbatim** from `evaluate_v2.py` (which is now committed
+as the reference implementation); the official V2 notebook's random stratified
+split was *not* carried over — temporal split per the plan's non-negotiables.
+
+### Verification — ✅ bit-identical
+
+`bootstrap → features → train → evaluate` on the sample season:
+
+```
+max |Δ test_pos_rate|: 9.54e-17   (one ulp in a mean)
+max |Δ lr_auc|:        0.00e+00   ← bit-identical, all 14 days
+max |Δ gb_auc|:        0.00e+00   ← bit-identical, all 14 days
+✅ PASS (tolerance 1e-06)
+```
+
+`explain` reproduces the documented SHAP story (top drivers: possessions_max,
+distance_max, minutes_max, distance_std, age_mean, usagepercentage_max).
+
+### The one real bug the gate caught
+
+First run: GB bit-identical but **LR off by up to 2.1e-3**. Cause: the dataset
+is persisted to CSV between `features` and `train`, and pandas' default fast
+float parser is ~1 ulp lossy on read-back. Threshold-based GB is insensitive to
+that; LBFGS-optimized LogisticRegression amplifies it into the 3rd decimal of
+AUC. Fix: `pd.read_csv(..., float_precision="round_trip")` in
+`train.load_dataset`. Lesson recorded here on purpose: **per-day AUC comparison
+is sensitive enough to catch a single-ulp serialization bug** — keep the
+reference check wired into CI.
+
+### Also in this phase
+
+- `.gitignore`: `artifacts/`, `*.egg-info/`, proper `__pycache__/` pattern.
+- `pip install -e .` works (pyproject from Phase 2); `ruff check .` clean.
+
+---
+
 *(Later phases appended below as they complete.)*
