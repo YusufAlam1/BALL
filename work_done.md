@@ -190,4 +190,25 @@ that don't exist yet.)*
 
 ---
 
+## Phase 5 — Data acquisition path (2026-06-10)
+
+- **Fast path (no credentials, no network)**: the repo/image ships one sample
+  season — `model_input_file.csv` (the materialized output of
+  `proof_of_concept_use_case/model_input_base.sql` against the original DB,
+  17,866 player-games incl. `is_injured`) + `game_dates.csv` + `players.csv`.
+  `python -m ball.pipeline.bootstrap` loads them into SQLite. This is what CI
+  and demos use.
+- **Full path (documented, not containerized)**: Supabase (Postgres) holds the
+  full relational data; `.env` carries credentials (`.env.example` extended
+  with the pipeline path vars too). Rebuilding from sources uses the existing
+  ETL in `src/ball/scripts/` (nba_api game stats/tracking/anthro pipelines,
+  `nba_injury_report_ETL/` for 2021+ injury reports). Deliberately left
+  outside the reproducible container path — it needs network + credentials.
+  Documented in `docs/docker.md` ("Where the data comes from").
+- `README.md` updated: Docker + native quickstarts, `pipeline/`+`app/`+`tests/`
+  rows in the repo-structure table, and the data-sources paragraph now states
+  the Supabase reality (the old text implied everything was still in SQLite).
+
+---
+
 *(Later phases appended below as they complete.)*

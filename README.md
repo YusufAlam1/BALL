@@ -35,7 +35,7 @@ The rolling-window approach solves both problems. Temporal aggregation smooths t
 
 ## Data Sources
 
-The model draws on four categories of variables, each capturing a different dimension of injury risk. All data is consolidated into a SQLite database with relational structure across players, games, injuries, and tracking data
+The model draws on four categories of variables, each capturing a different dimension of injury risk. The full dataset lives in a Supabase (Postgres) instance with relational structure across players, games, injuries, and tracking data; the repo ships one season of sample data that the pipeline loads into a local SQLite store for fully offline, reproducible runs
 
 ### Movement and Load
 
@@ -213,16 +213,48 @@ This project is ongoing. The following directions are under consideration or act
 
 | Directory | Contents |
 |-----------|----------|
-| `src/ball/models/` | Model training notebooks, feature engineering, and the proof-of-concept Streamlit application |
+| `src/ball/pipeline/` | **The production pipeline** — bootstrap, features, targets, train, evaluate, explain; each step has a `python -m ball.pipeline.<step>` CLI |
+| `src/ball/app/` | The Streamlit risk-curve dashboard |
+| `src/ball/models/` | Model research notebooks (reference; the V2 logic was extracted into `pipeline/`) |
 | `src/ball/scripts/` | Data extraction, transformation scripts, and SQL feature queries |
 | `src/ball/exploration/` | Exploratory analysis notebooks (court visualization, data relationship mapping, injury instances) |
 | `src/ball/db/` | Database schema definitions and connection utilities |
-| `docs/` | Project documentation: database schema, model reference material, phase write-ups, injury report notes |
+| `docs/` | Project documentation: database schema, model reference material, phase write-ups, **running in Docker** (`docs/docker.md`) |
 | `data/` | Sample datasets and reference CSVs |
+| `tests/` | Unit tests, including the temporal-split guard |
 
 ---
 
-## Setup
+## Quickstart — Docker
+
+The whole V2 pipeline (sample data → SQLite → Y per-day models → evaluation) and
+the dashboard run containerized; no credentials or network needed. See
+[`docs/docker.md`](docs/docker.md) for details.
+
+```bash
+docker compose build
+make docker-pipeline     # bootstrap → features → train → evaluate (verifies vs reference) → SHAP
+make up                  # dashboard at http://localhost:8501
+```
+
+## Quickstart — native
+
+```bash
+make install             # pinned deps + the ball package (editable)
+make pipeline            # same chain; writes data/BALL.db and artifacts/
+make app                 # Streamlit dashboard
+make test                # unit tests incl. the temporal-split guard
+```
+
+Every step is also a plain CLI, e.g.:
+
+```bash
+python -m ball.pipeline.features --lookback 14 --horizon 14
+python -m ball.pipeline.train    --horizon 14 --model gboost
+python -m ball.pipeline.evaluate
+```
+
+## Setup (manual)
 
 1. Create and activate a virtual environment:
 
@@ -238,6 +270,7 @@ source .venv/bin/activate
 
 ```bash
 pip install -r requirements.txt
+pip install -e .
 ```
 
 Recommended VS Code extensions:
