@@ -253,4 +253,46 @@ branch is pushed.**
 
 ---
 
-*(Later phases appended below as they complete.)*
+## Status & how to continue (handoff)
+
+### Done — all phases 0–8, each as a commit on `dockerize`
+
+```
+12eca55  chore: normalize line endings to LF repo-wide
+afb8d88  docs: dockerization plan, CLAUDE.md guardrails, work log (Phase 0)
+e4c561c  build: pin dependencies to verified versions (Phase 1)
+e856ff9  build: multi-stage base Docker image + packaging (Phase 2)
+5011af3  feat: extract V2 pipeline into ball.pipeline modules (Phase 3)
+e4ed4a0  feat: compose services, Makefile one-liners, devcontainer (Phases 4+7)
+936ee99  docs: data acquisition path + README quickstarts (Phase 5)
+a966524  feat: Streamlit risk-curve dashboard on ball.pipeline (Phase 6)
+4a74bc2  ci: lint, pipeline regression smoke, docker build + app health (Phase 8)
+```
+
+**Closing verification (2026-06-10):** deleted `data/BALL.db` + `artifacts/`,
+ran `make pipeline` from scratch → bit-identical to the reference again
+(max |ΔAUC| = 0.0 both families), `pytest` 13/13, `ruff` clean.
+
+### Not done / waiting on you
+
+1. **Push and watch the first CI run** — `git push -u origin dockerize`.
+   The docker job is where the image build gets its first real verification
+   (no Docker CLI in this devcontainer). If it fails, the likely suspects are
+   the base tag (`python:3.12.11-slim-bookworm`) or compose-on-runner quirks —
+   both easy fixes.
+2. **Merge to `main`** via PR when CI is green.
+3. **Still untracked on purpose** (your presentation workstream, per
+   `HANDOFF.md`): `plan.md`, `HANDOFF.md`, `docs/presentation/`. Decide their
+   fate after Friday.
+4. Roadmap items deliberately out of scope: Supabase-backed full-data pipeline
+   runs, nested temporal CV, multi-season data (all in README "Next Steps").
+
+### Cheat sheet
+
+```bash
+make pipeline          # sample CSVs → SQLite → dataset → 14×2 models → eval (verifies) → SHAP
+make app               # dashboard, natively
+make docker-pipeline   # same chain in a container (volumes: ball-db, ball-artifacts)
+make up                # dashboard at http://localhost:8501
+make test && make lint
+```
