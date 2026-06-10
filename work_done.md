@@ -90,4 +90,22 @@ Confirmed baseline (temporal 80/20 hold-out, season 2015-10-27 → 2016-04-13,
 
 ---
 
+## Phase 2 — Base Docker image (2026-06-10)
+
+- `Dockerfile`: multi-stage on `python:3.12.11-slim-bookworm` (exact match for the
+  devcontainer's Python 3.12.11). Builder stage wheels the pinned requirements;
+  runtime installs from wheels only (`--no-index`), copies `src/` + `data/`
+  (sample CSVs ship in the image so the pipeline can bootstrap with zero mounts),
+  runs as non-root user `ball`, and exposes the two volume mount points:
+  `BALL_DB_PATH=/data/BALL.db`, `BALL_ARTIFACTS_DIR=/artifacts`.
+  `PYTHONPATH=/app/src` makes `python -m ball.pipeline.*` work in-container.
+- `.dockerignore`: excludes git, docs, tests, envs, DBs.
+- `pyproject.toml`: minimal setuptools packaging (src layout) so `pip install -e .`
+  works locally/CI; also carries ruff + pytest config scoped to the production path.
+- ⚠️ **Not built locally — this devcontainer has no Docker CLI.** The image is
+  authored here and verified by the CI `docker build` + in-container smoke test
+  added in Phase 8. (Flagged in `DOCKER_PLAN.md` as [ADAPTED].)
+
+---
+
 *(Later phases appended below as they complete.)*

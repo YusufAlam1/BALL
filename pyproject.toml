@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ball"
+version = "0.1.0"
+description = "Probabilistic NBA injury-risk prediction: per-day forward probability curves from rolling game-data windows"
+requires-python = ">=3.12"
+# Runtime deps are managed via the pinned requirements.txt (single source of
+# truth shared by the devcontainer and the Docker image), not duplicated here.
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ball*"]
+namespaces = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# Lint only the production path; research notebooks/scripts keep their style.
+include = ["src/ball/pipeline/**/*.py", "src/ball/app/**/*.py", "tests/**/*.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

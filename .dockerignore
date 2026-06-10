@@ -1,0 +1,25 @@
+# Keep the image to what the pipeline/app actually need:
+# requirements, pyproject, src/ (includes sample model-input CSVs), data/.
+.git
+.github
+.devcontainer
+.venv
+venv
+docs
+tests
+artifacts
+__pycache__
+**/__pycache__
+**/.ipynb_checkpoints
+*.db
+.env
+.env.*
+!.env.example
+Dockerfile
+docker-compose.yml
+.dockerignore
+HANDOFF.md
+plan.md
+work_done.md
+DOCKER_PLAN.md
+CLAUDE.md
