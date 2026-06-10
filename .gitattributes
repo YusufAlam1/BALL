@@ -1,2 +1,20 @@
-# This is good if you dont want to track notebook outputs
+# Normalize all text files to LF in the repo and the working tree.
+# This repo is built into Docker images; CRLF endings break shell scripts
+# and create cross-platform diff noise.
+* text=auto eol=lf
+
+# Explicit binary files — never normalize.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.xlsx binary
+*.7z binary
+*.gz binary
+*.db binary
+*.joblib binary
+*.pkl binary
+
+# Notebook outputs: uncomment to strip outputs on commit (requires nbstripout).
 # *.ipynb filter=nbstripout
