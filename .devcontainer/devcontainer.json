@@ -1,0 +1,39 @@
+{
+  "name": "BALL (Python + Claude Code)",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+
+  // Reuse your host Claude Code login inside the container.
+  // ${localEnv:USERPROFILE} resolves to C:\\Users\\<you> on Windows.
+  // (On macOS/Linux change USERPROFILE -> HOME.)
+  "mounts": [
+    "source=${localEnv:USERPROFILE}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
+    "source=${localEnv:USERPROFILE}/.claude.json,target=/home/vscode/.claude.json,type=bind"
+  ],
+
+  "remoteUser": "vscode",
+
+  "forwardPorts": [8888],
+  "portsAttributes": {
+    "8888": { "label": "Jupyter", "onAutoForward": "notify" }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-toolsai.jupyter",
+        "anthropic.claude-code"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python"
+      }
+    }
+  },
+
+  // Runs once after the container is created. Confirms both tools are ready.
+  "postCreateCommand": "python --version && claude --version || echo 'Run: claude login (inside the container) if not already authenticated'"
+}

@@ -165,4 +165,29 @@ reference check wired into CI.
 
 ---
 
+## Phases 4 + 7 — Containerized run, compose + make (2026-06-10)
+
+*(Committed together: the Makefile and compose file are one coherent unit —
+splitting them would have meant committing a Makefile referencing services
+that don't exist yet.)*
+
+- `docker-compose.yml`: three services off **one shared image** —
+  `pipeline` (one-shot chain: bootstrap → features → train → evaluate →
+  explain; profile-gated so `docker compose up` doesn't auto-run it),
+  `app` (Streamlit on :8501 with a healthcheck), `notebook` (optional Jupyter
+  Lab on :8888, repo mounted over /app, profile-gated). Two named volumes:
+  `ball-db` → `/data` (SQLite), `ball-artifacts` → `/artifacts` (models,
+  dataset, evaluation, SHAP). Retraining never requires an image rebuild.
+- `Makefile`: native targets (`make data/features/train/evaluate/explain/
+  pipeline/app/test/lint`) and containerized twins (`make docker-*`,
+  `make up/down/build/notebook`). Native targets verified here
+  (`make evaluate` → ✅ PASS); docker targets validated as YAML + verified in CI.
+- `.devcontainer/` (created by the previous session, was untracked) committed:
+  it's the dev-side counterpart of the same environment and installs the same
+  pinned `requirements.txt`.
+- `docs/docker.md`: the "Running in Docker" page — quickstart, service/volume
+  tables, where the data comes from, native fallback, reproducibility contract.
+
+---
+
 *(Later phases appended below as they complete.)*

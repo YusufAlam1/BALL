@@ -1,0 +1,57 @@
+# BALL services — one shared image (see Dockerfile), no database server:
+# the SQLite store is a file on the ball-db volume, trained models live on
+# ball-artifacts. Quickstart:
+#
+#   make docker-pipeline   # bootstrap -> features -> train -> evaluate -> explain
+#   make up                # dashboard at http://localhost:8501
+#   make notebook          # Jupyter Lab at http://localhost:8888 (token: ball)
+
+services:
+  pipeline:
+    build: .
+    image: ball
+    profiles: ["pipeline"]  # one-shot: run via `docker compose run --rm pipeline`
+    volumes:
+      - ball-db:/data
+      - ball-artifacts:/artifacts
+    command: >
+      bash -c "python -m ball.pipeline.bootstrap
+      && python -m ball.pipeline.features
+      && python -m ball.pipeline.train
+      && python -m ball.pipeline.evaluate
+      && python -m ball.pipeline.explain"
+
+  app:
+    build: .
+    image: ball
+    ports:
+      - "8501:8501"
+    volumes:
+      - ball-db:/data
+      - ball-artifacts:/artifacts
+    command: streamlit run src/ball/app/app.py --server.address=0.0.0.0 --server.port=8501
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Optional: research notebooks in-container. Mounts the repo over /app so
+  # notebook edits land in your working tree.
+  notebook:
+    build: .
+    image: ball
+    profiles: ["notebook"]
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/app
+      - ball-db:/data
+      - ball-artifacts:/artifacts
+    command: >
+      jupyter lab --ip=0.0.0.0 --port=8888 --no-browser
+      --IdentityProvider.token=ball
+
+volumes:
+  ball-db:
+  ball-artifacts:
