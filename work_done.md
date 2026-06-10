@@ -68,4 +68,26 @@ Confirmed baseline (temporal 80/20 hold-out, season 2015-10-27 → 2016-04-13,
 
 ---
 
+## Phase 1 — Pin the environment (2026-06-10)
+
+- `requirements.txt` frozen to the exact versions installed in the devcontainer —
+  i.e. the versions the Phase 0 verification ran against (numpy 2.4.6, pandas 3.0.3,
+  scikit-learn 1.9.0, shap 0.52.0, …). Verified with `pip install --dry-run` (no
+  conflicts).
+- **Added**: `streamlit==1.58.0` (the POC app was never in requirements),
+  `supabase==2.31.0` (imported by `connect.py`/`ping.py`, was only installed ad-hoc
+  by the devcontainer Dockerfile), `python-dotenv` (replacing the ambiguous `dotenv`
+  entry — the `dotenv` PyPI package is a different project that shadows the same
+  module name).
+- **Dropped** (imported nowhere in the repo — checked all `.py` and `.ipynb`):
+  `google`, `selenium`, `polars`. Restore by re-adding a pinned line if ever needed.
+- **Kept** although notebook-only: `pandasql` (used by
+  `exploration/injury_instance.ipynb`), `SQLAlchemy` (used by v1/extract notebooks).
+- New `requirements-dev.txt`: `pytest==9.0.3`, `ruff==0.15.16` (CI/dev only, stays
+  out of the Docker image).
+- System-level deps: none beyond Python 3.12 — every pin ships a manylinux wheel
+  (psycopg2-binary bundles libpq; SQLite is in the stdlib).
+
+---
+
 *(Later phases appended below as they complete.)*

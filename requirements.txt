@@ -1,23 +1,35 @@
-beautifulsoup4
-google
-joblib
-jupyter
-matplotlib
-nba_api
-numpy
-pandas
-python-Levenshtein
-requests
-scikit-learn
-scipy
-shap
-selenium
-SQLAlchemy
-sqlite-utils
-thefuzz
-threadpoolctl
-pandasql
-polars
-dotenv
-psycopg2-binary
-# warnings
+# Pinned dependency set for BALL — used by the devcontainer AND the Docker image.
+# These are the exact versions the V2 results (docs/presentation/v2_results.csv)
+# were verified against on Python 3.12. If you change a pin, rerun
+# `make evaluate` (or evaluate_v2.py) and confirm the numbers still match.
+
+# --- core scientific stack (the V2 pipeline) ---
+numpy==2.4.6
+pandas==3.0.3
+scipy==1.17.1
+scikit-learn==1.9.0
+shap==0.52.0
+joblib==1.5.3
+matplotlib==3.10.9
+threadpoolctl==3.6.0
+
+# --- app ---
+streamlit==1.58.0
+thefuzz==0.22.1
+python-Levenshtein==0.27.3
+
+# --- data acquisition / ETL ---
+nba_api==1.11.4
+requests==2.34.2
+beautifulsoup4==4.15.0
+sqlite-utils==3.39
+SQLAlchemy==2.0.50
+pandasql==0.7.3
+
+# --- database / remote store (Supabase + Postgres) ---
+supabase==2.31.0
+psycopg2-binary==2.9.12
+python-dotenv==1.2.2
+
+# --- notebooks (exploration / research; also the optional Jupyter service) ---
+jupyter==1.1.1
