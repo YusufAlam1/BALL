@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dockerize]
+  pull_request:
+
+jobs:
+  # Lint + unit tests + the full pipeline on the sample season, natively.
+  # The evaluate step exits non-zero if the per-forward-day ROC-AUCs drift
+  # from the frozen reference (src/ball/pipeline/reference/).
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: |
+          pip install -r requirements-dev.txt
+          pip install -e .
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Unit tests (incl. temporal-split guard)
+        run: python -m pytest tests/ -q
+      - name: Pipeline smoke test — reproduce the V2 numbers
+        run: |
+          python -m ball.pipeline.bootstrap
+          python -m ball.pipeline.features
+          python -m ball.pipeline.train
+          python -m ball.pipeline.evaluate
+      - name: Assert artifacts
+        run: |
+          test -f artifacts/evaluation.csv
+          test -f artifacts/models_gboost.joblib
+          test -f artifacts/models_logreg.joblib
+          test -f artifacts/preprocess.joblib
+          test -f artifacts/meta.json
+      - name: App smoke test (headless AppTest against the trained artifacts)
+        run: python -m pytest tests/test_app.py -q
+
+  # Build the image and prove a fresh container reproduces the reference
+  # numbers end to end (shorter horizon to keep CI fast; days 1-2 are still
+  # compared against the frozen reference).
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t ball .
+      - name: In-container smoke — bootstrap to evaluate
+        run: |
+          docker run --rm ball bash -c "
+            python -m ball.pipeline.bootstrap &&
+            python -m ball.pipeline.features --horizon 2 &&
+            python -m ball.pipeline.train --horizon 2 &&
+            python -m ball.pipeline.evaluate &&
+            ls -la /artifacts"
+      - name: App container starts and serves
+        run: |
+          docker compose up -d app
+          for i in $(seq 1 30); do
+            if docker compose exec -T app curl -fs http://localhost:8501/_stcore/health >/dev/null 2>&1; then
+              echo "app healthy"; exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs app
+          exit 1

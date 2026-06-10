@@ -233,4 +233,24 @@ that don't exist yet.)*
 
 ---
 
+## Phase 8 — CI + reproducibility (2026-06-10)
+
+New `.github/workflows/ci.yaml` (the existing `main.yaml` Supabase keep-alive
+is untouched), two jobs:
+
+1. **pipeline** (native, Python 3.12): ruff → unit tests (temporal-split guard
+   included; app test auto-skips pre-artifacts) → **full pipeline on the sample
+   season** — the evaluate step *is* the regression test, exiting non-zero if
+   any per-day ROC-AUC drifts from the frozen reference → artifact assertions →
+   headless AppTest against the freshly trained artifacts.
+2. **docker**: `docker build` → in-container bootstrap→features→train→evaluate
+   (horizon 2 for speed; days 1–2 still compared against the reference) →
+   `docker compose up app` and poll its healthcheck endpoint until healthy.
+
+This is where the Docker assets get their real verification, since this
+devcontainer has no Docker CLI. **First run happens when the `dockerize`
+branch is pushed.**
+
+---
+
 *(Later phases appended below as they complete.)*
