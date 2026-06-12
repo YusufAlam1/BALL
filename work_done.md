@@ -300,6 +300,27 @@ reference now differs from the talk snapshot by ≤1.8e-3 on `lr_auc` only.
 `--model both` and `--model all` — both reproduce the re-frozen reference at
 `max |Δ| = 0.00e+00` (lr + gb). `pytest` 13/13, `ruff` clean.
 
+### CI fix follow-up — per-family tolerance (2026-06-12)
+
+**Why:** the thread-pin alone was *not* enough across machines. A Codespace that
+had pulled the pin + re-frozen reference still failed with `max |Δ lr_auc| ≈
+2.58e-3`. Root cause: even single-threaded, `lbfgs` uses BLAS kernels that differ
+by **CPU microarchitecture**, so logreg AUCs are not bit-exact across different
+CPUs (~2-3e-3 floor). Thread-pinning removes thread-count variance but not this.
+
+**Fix:** `evaluate.compare()` now uses a **per-column tolerance** (`COLUMN_TOL`):
+`test_pos_rate` and `gb_auc` stay strict at `1e-6` (bit-identical everywhere);
+`lr_auc` gets `1e-2` (covers the ~2.6e-3 cross-CPU drift with margin, still trips
+on a real regression, which moves AUC by ≫1e-2). New `--lr-tolerance` CLI flag.
+The thread-pin + CI env vars stay (they kill run-to-run/thread variance and keep
+the reference clean). The re-frozen reference is now technically optional — left
+as-is to avoid churn; could be reverted to byte-match `docs/presentation/` if
+preferred.
+
+**Verification:** clean run PASSes (per-column tolerances shown); a perturbed
+reference (lr +0.05, gb +1e-4) correctly FAILs both columns and exits 1; clean
+run exits 0. `pytest` 13/13, `ruff` clean.
+
 ### Not done / waiting on you
 
 1. **Push and watch the first CI run** — `git push -u origin dockerize`.
