@@ -37,5 +37,5 @@
   },
 
   // Runs once after the container is created. Confirms both tools are ready.
-  "postCreateCommand": "python --version && claude --version || echo 'Run: claude login (inside the container) if not already authenticated'"
+  "postCreateCommand": "pip install -e . && python --version && claude --version || echo 'Run: claude login (inside the container) if not already authenticated'"
 }
