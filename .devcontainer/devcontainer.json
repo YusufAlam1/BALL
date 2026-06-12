@@ -5,13 +5,15 @@
     "context": ".."
   },
 
-  // Reuse your host Claude Code login inside the container.
-  // ${localEnv:USERPROFILE} resolves to C:\\Users\\<you> on Windows.
-  // (On macOS/Linux change USERPROFILE -> HOME.)
-  "mounts": [
-    "source=${localEnv:USERPROFILE}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
-    "source=${localEnv:USERPROFILE}/.claude.json,target=/home/vscode/.claude.json,type=bind"
-  ],
+  // On local Windows dev you can re-add these mounts to reuse your host
+  // Claude Code credentials without re-logging in.  They are omitted here
+  // so the devcontainer also builds cleanly in GitHub Codespaces, where
+  // USERPROFILE is unset.  Run `claude login` once after the container starts.
+  //
+  // "mounts": [
+  //   "source=${localEnv:USERPROFILE}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
+  //   "source=${localEnv:USERPROFILE}/.claude.json,target=/home/vscode/.claude.json,type=bind"
+  // ],
 
   "remoteUser": "vscode",
 
