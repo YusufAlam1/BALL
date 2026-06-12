@@ -1,0 +1,95 @@
+name: CI (XGBoost variant)
+
+# Separate from ci.yaml so the reference logreg/gboost CI stays fast and
+# independent. This one installs the optional xgboost dependency, runs the
+# `--model all` comparison pipeline, and builds the dedicated Dockerfile.xgb
+# image. Path-filtered so it only fires when XGBoost-relevant files change.
+on:
+  push:
+    branches: [main, dockerize]
+    paths:
+      - 'src/ball/pipeline/**'
+      - 'src/ball/app/**'
+      - 'requirements*.txt'
+      - 'Dockerfile.xgb'
+      - 'docker-compose.xgb.yml'
+      - '.github/workflows/ci-xgb.yaml'
+  pull_request:
+    paths:
+      - 'src/ball/pipeline/**'
+      - 'src/ball/app/**'
+      - 'requirements*.txt'
+      - 'Dockerfile.xgb'
+      - 'docker-compose.xgb.yml'
+      - '.github/workflows/ci-xgb.yaml'
+
+jobs:
+  # Lint + tests + the XGBoost comparison pipeline, natively. evaluate still
+  # exits non-zero if logreg/gboost drift from the frozen reference, so adding
+  # XGBoost can never silently break the reference science.
+  pipeline-xgb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install (incl. optional xgboost)
+        run: |
+          pip install -r requirements-dev.txt
+          pip install -r requirements-xgb.txt
+          pip install -e .
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Unit tests (incl. temporal-split guard)
+        run: python -m pytest tests/ -q
+      - name: XGBoost comparison pipeline — reference still verified
+        run: |
+          python -m ball.pipeline.bootstrap
+          python -m ball.pipeline.features
+          python -m ball.pipeline.train --model all
+          python -m ball.pipeline.evaluate
+      - name: Assert XGBoost artifacts + xgb_auc column present
+        run: |
+          test -f artifacts/models_xgboost.joblib
+          test -f artifacts/models_gboost.joblib
+          test -f artifacts/models_logreg.joblib
+          python - <<'PY'
+          import pandas as pd
+          df = pd.read_csv("artifacts/evaluation.csv")
+          assert "xgb_auc" in df.columns, "evaluation.csv missing xgb_auc column"
+          assert df["xgb_auc"].notna().any(), "xgb_auc column is all-NaN"
+          print("xgb_auc OK:\n", df[["forward_day", "gb_auc", "xgb_auc"]].to_string(index=False))
+          PY
+      - name: App smoke test (headless AppTest against the trained artifacts)
+        run: python -m pytest tests/test_app.py -q
+
+  # Build the XGBoost image and prove a fresh container runs the comparison
+  # end to end (short horizon to keep CI fast).
+  docker-xgb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build XGBoost image
+        run: docker build -f Dockerfile.xgb -t ball-xgb .
+      - name: In-container smoke — bootstrap to evaluate (--model all)
+        run: |
+          docker run --rm ball-xgb bash -c "
+            python -m ball.pipeline.bootstrap &&
+            python -m ball.pipeline.features --horizon 2 &&
+            python -m ball.pipeline.train --model all --horizon 2 &&
+            python -m ball.pipeline.evaluate &&
+            test -f /artifacts/models_xgboost.joblib &&
+            ls -la /artifacts"
+      - name: XGBoost app container starts and serves (port 8502)
+        run: |
+          docker compose -f docker-compose.xgb.yml up -d app-xgb
+          for i in $(seq 1 30); do
+            if docker compose -f docker-compose.xgb.yml exec -T app-xgb curl -fs http://localhost:8501/_stcore/health >/dev/null 2>&1; then
+              echo "xgb app healthy"; exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f docker-compose.xgb.yml logs app-xgb
+          exit 1

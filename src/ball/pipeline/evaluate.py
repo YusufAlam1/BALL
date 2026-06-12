@@ -1,8 +1,10 @@
 """Evaluate the trained per-forward-day models on the temporal hold-out.
 
-Writes per-horizon ROC-AUC (LogReg vs GradientBoosting) to
-$BALL_ARTIFACTS_DIR/evaluation.csv and, by default, verifies the numbers
-against the frozen reference (the values in the 2026-06 presentation).
+Writes per-horizon ROC-AUC (LogReg vs GradientBoosting, plus XGBoost when it
+was trained via `train --model all`) to $BALL_ARTIFACTS_DIR/evaluation.csv and,
+by default, verifies the lr_auc/gb_auc numbers against the frozen reference (the
+values in the 2026-06 presentation). The xgb_auc column is reported for
+comparison only — it is never checked against the reference.
 ROC-AUC is the primary metric: with a rare positive class it measures
 discriminative ability independent of any decision threshold.
 
@@ -21,6 +23,12 @@ import pandas as pd
 from sklearn.metrics import roc_auc_score
 
 from ball.pipeline import config, features, train
+
+# Ordered family -> AUC column name. logreg/gboost match the frozen reference
+# CSV; xgboost adds an extra column for side-by-side comparison only.
+FAMILY_AUC_COL = [("logreg", "lr_auc"), ("gboost", "gb_auc"), ("xgboost", "xgb_auc")]
+# Columns the reference file carries and that must reproduce exactly.
+REFERENCE_COLS = ("test_pos_rate", "lr_auc", "gb_auc")
 
 
 def evaluate(dataset: pd.DataFrame, art: Path) -> pd.DataFrame:
@@ -43,11 +51,15 @@ def evaluate(dataset: pd.DataFrame, art: Path) -> pd.DataFrame:
         if (art / f"models_{fam}.joblib").exists()
     }
 
+    # Report a column per trained family, keeping lr_auc/gb_auc first so the
+    # output stays comparable with the reference CSV; xgb_auc is appended only
+    # when the xgboost family was trained.
+    families = [(fam, key) for fam, key in FAMILY_AUC_COL if fam in meta["model_families"]]
     results = []
     for d in range(1, horizon + 1):
         yte = Tdf[d].values[te]
         row = {"forward_day": d, "test_pos_rate": float(yte.mean())}
-        for fam, key in (("logreg", "lr_auc"), ("gboost", "gb_auc")):
+        for fam, key in families:
             model = model_sets.get(fam, {}).get(d)
             row[key] = (
                 float(roc_auc_score(yte, model.predict_proba(Xte)[:, 1]))
@@ -62,15 +74,24 @@ def compare(res: pd.DataFrame, reference: Path, tolerance: float) -> bool:
     ref = pd.read_csv(reference)
     merged = res.merge(ref, on="forward_day", suffixes=("", "_ref"))
     diffs = {}
-    for col in ("test_pos_rate", "lr_auc", "gb_auc"):
+    # Only verify reference columns that this run actually produced. A family
+    # we didn't train (e.g. logreg-only run, or the extra xgb_auc column that
+    # the reference doesn't carry) is skipped rather than treated as a mismatch.
+    for col in REFERENCE_COLS:
+        if col not in res.columns or col not in ref.columns:
+            continue
         a, b = merged[col].values, merged[f"{col}_ref"].values
-        both = ~(np.isnan(a) & np.isnan(b))
-        diffs[col] = float(np.nanmax(np.abs(a[both] - b[both]))) if both.any() else 0.0
-    worst = max(diffs.values())
-    ok = worst <= tolerance
+        mask = ~(np.isnan(a) | np.isnan(b))  # compare only where both are present
+        if mask.any():
+            diffs[col] = float(np.max(np.abs(a[mask] - b[mask])))
     print(f"\nReference comparison vs {reference}:")
+    if not diffs:
+        print("  (no overlapping reference columns to verify)")
+        return True
     for col, dv in diffs.items():
         print(f"  max |Δ {col}|: {dv:.2e}")
+    worst = max(diffs.values())
+    ok = worst <= tolerance
     print(f"  {'✅ PASS' if ok else '❌ FAIL'} (tolerance {tolerance:g})")
     return ok
 

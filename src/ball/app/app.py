@@ -96,9 +96,10 @@ forward_days = st.number_input(
     "Forward window (Y days)", 1, MAX_FORWARD, min(MAX_FORWARD, 14)
 )
 family = st.radio(
-    "Model", [f for f in ("gboost", "logreg") if f in model_sets],
+    "Model", [f for f in ("gboost", "xgboost", "logreg") if f in model_sets],
     horizontal=True,
     format_func=lambda f: {"gboost": "Gradient Boosting (V2 winner)",
+                           "xgboost": "XGBoost (comparison)",
                            "logreg": "Logistic Regression (baseline)"}[f],
 )
 

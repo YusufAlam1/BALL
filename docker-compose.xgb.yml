@@ -1,0 +1,69 @@
+# BALL — XGBoost variant stack. Fully SEPARATE from docker-compose.yml:
+#   - its own image (Dockerfile.xgb, with xgboost installed)
+#   - its own project name (ball-xgb) and volumes (ball-xgb-db / ball-xgb-artifacts)
+#   - its own app port (8502)
+# so it runs alongside the base stack without touching ball-db / ball-artifacts.
+# You keep the reference pipeline exactly as-is AND get the XGBoost comparison.
+#
+#   make docker-pipeline-xgb   # bootstrap -> features -> train --model all -> evaluate -> explain
+#   make up-xgb                # XGBoost dashboard at http://localhost:8502
+#   make docker-tune-xgb       # temporal-CV hyperparameter search in-container
+name: ball-xgb
+
+services:
+  # One-shot comparison pipeline. `train --model all` fits logreg + gboost +
+  # xgboost; evaluate then reports lr_auc / gb_auc / xgb_auc side by side and
+  # still verifies lr/gb against the frozen reference.
+  pipeline-xgb:
+    build:
+      context: .
+      dockerfile: Dockerfile.xgb
+    image: ball-xgb
+    profiles: ["pipeline"]  # run via `docker compose -f docker-compose.xgb.yml run --rm pipeline-xgb`
+    volumes:
+      - ball-xgb-db:/data
+      - ball-xgb-artifacts:/artifacts
+    command: >
+      bash -c "python -m ball.pipeline.bootstrap
+      && python -m ball.pipeline.features
+      && python -m ball.pipeline.train --model all
+      && python -m ball.pipeline.evaluate
+      && python -m ball.pipeline.explain"
+
+  # Optional one-shot: re-run the leakage-free temporal-CV hyperparameter search.
+  # Writes the winner to /artifacts/xgb_best_params.json (paste into
+  # train.XGB_PARAMS to make it the production config).
+  tune-xgb:
+    build:
+      context: .
+      dockerfile: Dockerfile.xgb
+    image: ball-xgb
+    profiles: ["tune"]
+    volumes:
+      - ball-xgb-db:/data
+      - ball-xgb-artifacts:/artifacts
+    command: python -m ball.pipeline.tune_xgb
+
+  # Same Streamlit dashboard, served from the XGBoost image so the model
+  # selector also offers "XGBoost (comparison)". Port 8502 to coexist with the
+  # base app on 8501.
+  app-xgb:
+    build:
+      context: .
+      dockerfile: Dockerfile.xgb
+    image: ball-xgb
+    ports:
+      - "8502:8501"
+    volumes:
+      - ball-xgb-db:/data
+      - ball-xgb-artifacts:/artifacts
+    command: streamlit run src/ball/app/app.py --server.address=0.0.0.0 --server.port=8501
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  ball-xgb-db:
+  ball-xgb-artifacts:

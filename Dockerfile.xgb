@@ -1,0 +1,55 @@
+# BALL — XGBoost variant image. SEPARATE from the base `Dockerfile` so the
+# reference logreg/gboost stack stays lean: this image additionally installs the
+# optional xgboost dependency (requirements-xgb.txt, which pulls in large CUDA
+# libraries) so `train --model all`, `tune_xgb`, and the XGBoost comparison flow
+# all work in-container.
+#
+# Build:  docker build -f Dockerfile.xgb -t ball-xgb .
+#   or:   docker compose -f docker-compose.xgb.yml build
+#
+# Same multi-stage layout as Dockerfile — only the requirements file differs
+# (requirements-xgb.txt starts with `-r requirements.txt`, so both pins are
+# resolved together and stay in lockstep with the base image).
+
+# --- builder: resolve and build all wheels --------------------------------
+FROM python:3.12.11-slim-bookworm AS builder
+
+# build-essential only as a fallback for any pin that lacks a wheel
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Both files are needed: requirements-xgb.txt references requirements.txt via -r
+COPY requirements.txt requirements-xgb.txt /tmp/
+RUN pip wheel --no-cache-dir --wheel-dir /wheels -r /tmp/requirements-xgb.txt
+
+# --- runtime ----------------------------------------------------------------
+FROM python:3.12.11-slim-bookworm
+
+# curl is used by the app service healthcheck in docker-compose.xgb.yml
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 1000 ball
+
+COPY requirements.txt requirements-xgb.txt /tmp/
+RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels \
+    pip install --no-cache-dir --no-index --find-links=/wheels -r /tmp/requirements-xgb.txt
+
+WORKDIR /app
+COPY --chown=ball:ball pyproject.toml README.md ./
+COPY --chown=ball:ball data ./data
+COPY --chown=ball:ball src ./src
+
+# Volume mount points for the SQLite DB and the trained-model artifacts.
+# Kept identical to the base image so the same env contract holds; only the
+# compose file points these at the separate ball-xgb-* volumes.
+ENV BALL_DB_PATH=/data/BALL.db \
+    BALL_ARTIFACTS_DIR=/artifacts \
+    PYTHONPATH=/app/src \
+    PYTHONUNBUFFERED=1
+RUN mkdir -p /data /artifacts && chown ball:ball /data /artifacts
+
+USER ball
+
+CMD ["bash"]

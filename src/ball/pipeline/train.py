@@ -1,8 +1,12 @@
 """Train the per-forward-day injury models on the temporal split.
 
-One model per forward day d in 1..Y, two families:
+One model per forward day d in 1..Y. Two reference families plus one optional
+comparison family:
   - Logistic Regression (interpretable baseline; class-balanced)
   - Gradient Boosting   (the V2 winner)
+  - XGBoost             (optional comparison via --model all; needs the
+                         requirements-xgb.txt dependency — never affects the
+                         logreg/gboost reference numbers)
 
 The split is temporal — earliest 80% of observation dates train, latest 20%
 test. NEVER replace this with a random shuffle: that leaks future information
@@ -13,10 +17,12 @@ Artifacts written to $BALL_ARTIFACTS_DIR:
     preprocess.joblib      imputer + scaler (fit on the train window only)
     models_logreg.joblib   {forward_day: fitted LogisticRegression}
     models_gboost.joblib   {forward_day: fitted GradientBoostingClassifier}
+    models_xgboost.joblib  {forward_day: fitted XGBClassifier}  (only with --model all)
     meta.json              feature columns, split, params, versions
 
 Usage:
-    python -m ball.pipeline.train [--horizon 14] [--model both|logreg|gboost]
+    python -m ball.pipeline.train [--horizon 14]
+                                  [--model both|all|logreg|gboost|xgboost]
                                   [--dataset PATH]
 """
 import argparse
@@ -39,6 +45,69 @@ from ball.pipeline import config, features
 # same rule as the reference implementation.
 MIN_TRAIN_POSITIVES = 5
 MIN_TEST_POSITIVES = 1
+
+# Model families. `logreg` and `gboost` are the V2 reference families whose
+# per-forward-day ROC-AUCs are frozen in reference/v2_results_2015-16.csv — do
+# NOT alter how they are constructed. `xgboost` is an additive comparison family
+# (optional dependency, see requirements-xgb.txt); it never touches the
+# reference path. The CLI exposes named groups in FAMILY_GROUPS below.
+REFERENCE_FAMILIES = ["logreg", "gboost"]
+FAMILY_GROUPS = {
+    "both": ["logreg", "gboost"],          # default: the reproducible reference pair
+    "all": ["logreg", "gboost", "xgboost"],  # reference pair + XGBoost comparison
+    "logreg": ["logreg"],
+    "gboost": ["gboost"],
+    "xgboost": ["xgboost"],
+}
+
+# Tuned XGBoost hyperparameters, chosen by ball.pipeline.tune_xgb on a temporal
+# validation slice of the training window (the test hold-out is never used for
+# tuning). scale_pos_weight is set per forward day at fit time, not here. Re-run
+# `python -m ball.pipeline.tune_xgb` and paste its winner here to retune.
+XGB_PARAMS = {
+    "n_estimators": 800,
+    "max_depth": 8,
+    "learning_rate": 0.05,
+    "subsample": 1.0,
+    "colsample_bytree": 0.7,
+    "min_child_weight": 3,
+    "reg_lambda": 10.0,
+    "gamma": 2.0,
+}
+
+
+def make_estimator(family: str, y_train: np.ndarray):
+    """Return a fresh, unfitted estimator for one forward-day model.
+
+    logreg/gboost reproduce the V2 reference exactly; xgboost is the optional
+    comparison family (class-imbalance handled via per-day scale_pos_weight,
+    mirroring logreg's class_weight='balanced')."""
+    if family == "logreg":
+        return LogisticRegression(
+            max_iter=2000, class_weight="balanced", random_state=config.RANDOM_STATE
+        )
+    if family == "gboost":
+        return GradientBoostingClassifier(random_state=config.RANDOM_STATE)
+    if family == "xgboost":
+        try:
+            from xgboost import XGBClassifier
+        except ModuleNotFoundError as exc:  # optional dependency
+            raise SystemExit(
+                "XGBoost is not installed. Install the optional comparison "
+                "dependency with `make install-xgb` (or "
+                "`pip install -r requirements-xgb.txt`), then retry."
+            ) from exc
+        pos = int(y_train.sum())
+        neg = int(len(y_train) - pos)
+        return XGBClassifier(
+            **XGB_PARAMS,
+            scale_pos_weight=(neg / pos) if pos else 1.0,
+            eval_metric="logloss",
+            tree_method="hist",
+            n_jobs=1,  # single-threaded for reproducible AUCs
+            random_state=config.RANDOM_STATE,
+        )
+    raise ValueError(f"unknown model family {family!r}")
 
 
 def temporal_split(date_values: np.ndarray, train_fraction: float = config.TRAIN_FRACTION):
@@ -79,16 +148,10 @@ def train(dataset: pd.DataFrame, horizon: int, model_families: list):
             skipped.append(d)
             print(f"  day {d:>2}: skipped ({int(ytr.sum())} train / {int(yte.sum())} test positives)")
             continue
-        if "logreg" in model_families:
-            lr = LogisticRegression(
-                max_iter=2000, class_weight="balanced", random_state=config.RANDOM_STATE
-            )
-            lr.fit(Xtr, ytr)
-            models["logreg"][d] = lr
-        if "gboost" in model_families:
-            gb = GradientBoostingClassifier(random_state=config.RANDOM_STATE)
-            gb.fit(Xtr, ytr)
-            models["gboost"][d] = gb
+        for fam in model_families:
+            est = make_estimator(fam, ytr)
+            est.fit(Xtr, ytr)
+            models[fam][d] = est
         print(f"  day {d:>2}: trained {'+'.join(model_families)} "
               f"({int(ytr.sum())} train positives)")
 
@@ -104,13 +167,18 @@ def train(dataset: pd.DataFrame, horizon: int, model_families: list):
         "sklearn_version": sklearn.__version__,
         "trained_at": datetime.now(timezone.utc).isoformat(),
     }
+    if "xgboost" in model_families:
+        import xgboost
+        meta["xgboost_version"] = xgboost.__version__
     return (imputer, scaler), models, meta
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--horizon", type=int, default=config.DEFAULT_FORWARD_DAYS)
-    ap.add_argument("--model", choices=["both", "logreg", "gboost"], default="both")
+    ap.add_argument("--model", choices=list(FAMILY_GROUPS), default="both",
+                    help="which model family/families to train (default: both = "
+                         "logreg+gboost reference pair; 'all' adds XGBoost)")
     ap.add_argument("--dataset", type=Path, default=None)
     args = ap.parse_args()
 
@@ -120,7 +188,7 @@ def main() -> None:
             f"No dataset at {dataset_file} — run `python -m ball.pipeline.features` first."
         )
     dataset = load_dataset(dataset_file, args.horizon)
-    families = ["logreg", "gboost"] if args.model == "both" else [args.model]
+    families = FAMILY_GROUPS[args.model]
     print(f"Training {families} on {len(dataset)} observations, horizon {args.horizon}d "
           f"(temporal {round(config.TRAIN_FRACTION * 100)}/{round((1 - config.TRAIN_FRACTION) * 100)} split)")
 

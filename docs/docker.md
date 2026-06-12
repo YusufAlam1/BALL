@@ -53,6 +53,38 @@ sources uses the ETL in `src/ball/scripts/` (NBA stats + tracking via
 the script docstrings — it is intentionally *not* part of the containerized
 reproducible path.
 
+## XGBoost variant (separate stack)
+
+The reference stack above only needs scikit-learn. The optional **XGBoost
+comparison** runs from its own image and compose file so it never touches the
+base stack — you keep the previous pipeline exactly as-is and run XGBoost
+side by side.
+
+```bash
+make build-xgb            # build ball-xgb (Dockerfile.xgb, includes xgboost)
+make docker-pipeline-xgb  # bootstrap → features → train --model all → evaluate → explain
+make up-xgb               # XGBoost dashboard at http://localhost:8502
+make docker-tune-xgb      # optional: temporal-CV hyperparameter search in-container
+make down-xgb             # stop it (ball-xgb-* volumes survive)
+```
+
+What makes it separate (so the two coexist):
+
+| | Base stack | XGBoost stack |
+|---|---|---|
+| Image | `ball` (`Dockerfile`) | `ball-xgb` (`Dockerfile.xgb`, + `requirements-xgb.txt`) |
+| Compose | `docker-compose.yml` | `docker-compose.xgb.yml` (project `ball-xgb`) |
+| Train command | `train` (logreg + gboost) | `train --model all` (+ xgboost) |
+| App port | 8501 | 8502 |
+| Volumes | `ball-db`, `ball-artifacts` | `ball-xgb-db`, `ball-xgb-artifacts` |
+| CI | `.github/workflows/ci.yaml` | `.github/workflows/ci-xgb.yaml` |
+
+`evaluate` in the XGBoost stack still verifies logreg/gboost against the frozen
+reference and adds an `xgb_auc` column — the XGBoost numbers are reported for
+comparison only and are never checked against the reference. The XGBoost image
+is larger (the xgboost wheel pulls in CUDA libraries), which is exactly why it
+is kept out of the base image.
+
 ## Running natively instead (e.g. in the devcontainer)
 
 ```bash

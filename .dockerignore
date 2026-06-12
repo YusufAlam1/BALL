@@ -16,7 +16,9 @@ __pycache__
 .env.*
 !.env.example
 Dockerfile
+Dockerfile.xgb
 docker-compose.yml
+docker-compose.xgb.yml
 .dockerignore
 HANDOFF.md
 plan.md

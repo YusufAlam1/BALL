@@ -1,0 +1,11 @@
+# Optional dependency for the XGBoost comparison flow (`make train-xgb`).
+#
+# Kept OUT of requirements.txt (and therefore the base Docker image and
+# devcontainer) on purpose: the xgboost wheel pulls in large NVIDIA CUDA
+# libraries (~300 MB) that the reference logreg/gboost pipeline does not need.
+# Install only when you want to run the XGBoost comparison:
+#
+#   make install-xgb        # or: pip install -r requirements-xgb.txt
+#
+-r requirements.txt
+xgboost==3.2.0
