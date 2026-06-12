@@ -23,6 +23,16 @@ on:
       - 'docker-compose.xgb.yml'
       - '.github/workflows/ci-xgb.yaml'
 
+# Single-thread BLAS/OpenMP so the lbfgs solver is deterministic and the frozen
+# reference reproduces exactly. This matters most here: importing xgboost pulls
+# in its own OpenMP runtime, which used to perturb logreg's threading and drift
+# lr_auc past the 1e-6 reference tolerance. The pipeline also pins this in-code
+# (threadpoolctl); these env vars are the explicit CI-level backstop.
+env:
+  OMP_NUM_THREADS: "1"
+  OPENBLAS_NUM_THREADS: "1"
+  MKL_NUM_THREADS: "1"
+
 jobs:
   # Lint + tests + the XGBoost comparison pipeline, natively. evaluate still
   # exits non-zero if logreg/gboost drift from the frozen reference, so adding
@@ -75,7 +85,9 @@ jobs:
         run: docker build -f Dockerfile.xgb -t ball-xgb .
       - name: In-container smoke — bootstrap to evaluate (--model all)
         run: |
-          docker run --rm ball-xgb bash -c "
+          docker run --rm \
+            -e OMP_NUM_THREADS=1 -e OPENBLAS_NUM_THREADS=1 -e MKL_NUM_THREADS=1 \
+            ball-xgb bash -c "
             python -m ball.pipeline.bootstrap &&
             python -m ball.pipeline.features --horizon 2 &&
             python -m ball.pipeline.train --model all --horizon 2 &&

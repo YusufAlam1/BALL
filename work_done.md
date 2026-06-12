@@ -273,6 +273,33 @@ a966524  feat: Streamlit risk-curve dashboard on ball.pipeline (Phase 6)
 ran `make pipeline` from scratch → bit-identical to the reference again
 (max |ΔAUC| = 0.0 both families), `pytest` 13/13, `ruff` clean.
 
+### CI fix — thread-pin logreg for reproducibility (2026-06-12)
+
+**Symptom:** the `ci-xgb` workflow (`--model all`) failed the reference check
+with `max |Δ lr_auc| ≈ 1.15e-3 > 1e-6`; `gb_auc` and `test_pos_rate` matched
+exactly.
+
+**Cause:** LogisticRegression's lbfgs solver sums gradients in a
+thread-count-dependent order, so the per-day AUCs drift in the 3rd decimal
+between machines (this devcontainer defaults to **12** BLAS threads, a CI runner
+has 2). The frozen reference had been generated multi-threaded, so it only
+reproduced on a 12-thread box. Importing xgboost (its own OpenMP runtime) made
+the drift bite in `ci-xgb`. GradientBoosting/XGBoost are tree-based and were
+unaffected.
+
+**Fix:** pin BLAS/OpenMP to a single thread around the fits (`train.py`) and the
+scoring (`evaluate.py`) via the already-pinned `threadpoolctl`, so the numbers
+reproduce bit-for-bit regardless of core count (local, Docker, CI). Added
+`OMP/OPENBLAS/MKL_NUM_THREADS=1` to both workflows (+ `docker run -e …`) as an
+explicit backstop. **Re-froze** `src/ball/pipeline/reference/v2_results_2015-16.csv`
+under the single-thread pin — only `lr_auc` moved (≤1.8e-3); `gb_auc`/`test_pos_rate`
+byte-identical. `docs/presentation/v2_results.csv` left untouched, so the pipeline
+reference now differs from the talk snapshot by ≤1.8e-3 on `lr_auc` only.
+
+**Verification:** clean from-scratch runs in a default 12-thread shell —
+`--model both` and `--model all` — both reproduce the re-frozen reference at
+`max |Δ| = 0.00e+00` (lr + gb). `pytest` 13/13, `ruff` clean.
+
 ### Not done / waiting on you
 
 1. **Push and watch the first CI run** — `git push -u origin dockerize`.

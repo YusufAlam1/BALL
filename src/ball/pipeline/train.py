@@ -38,6 +38,7 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
+from threadpoolctl import threadpool_limits
 
 from ball.pipeline import config, features
 
@@ -141,19 +142,28 @@ def train(dataset: pd.DataFrame, horizon: int, model_families: list):
 
     models = {fam: {} for fam in model_families}
     skipped = []
-    for d in range(1, horizon + 1):
-        y = Tdf[d].values
-        ytr, yte = y[tr], y[te]
-        if ytr.sum() < MIN_TRAIN_POSITIVES or yte.sum() < MIN_TEST_POSITIVES:
-            skipped.append(d)
-            print(f"  day {d:>2}: skipped ({int(ytr.sum())} train / {int(yte.sum())} test positives)")
-            continue
-        for fam in model_families:
-            est = make_estimator(fam, ytr)
-            est.fit(Xtr, ytr)
-            models[fam][d] = est
-        print(f"  day {d:>2}: trained {'+'.join(model_families)} "
-              f"({int(ytr.sum())} train positives)")
+    # Pin BLAS/OpenMP to a single thread for the fits. LogisticRegression's
+    # lbfgs solver sums gradients in a thread-count-dependent order; with the
+    # default multi-threaded OpenBLAS the per-forward-day ROC-AUCs drift in the
+    # 3rd decimal between machines (e.g. a 12-core devcontainer vs a 2-core CI
+    # runner), which silently breaks the frozen-reference check. Single-threaded
+    # the summation order is fixed, so the reference reproduces bit-for-bit
+    # everywhere (local, Docker, CI). The frozen reference was regenerated under
+    # this pin — keep it. (gboost/xgboost are already deterministic.)
+    with threadpool_limits(limits=1):
+        for d in range(1, horizon + 1):
+            y = Tdf[d].values
+            ytr, yte = y[tr], y[te]
+            if ytr.sum() < MIN_TRAIN_POSITIVES or yte.sum() < MIN_TEST_POSITIVES:
+                skipped.append(d)
+                print(f"  day {d:>2}: skipped ({int(ytr.sum())} train / {int(yte.sum())} test positives)")
+                continue
+            for fam in model_families:
+                est = make_estimator(fam, ytr)
+                est.fit(Xtr, ytr)
+                models[fam][d] = est
+            print(f"  day {d:>2}: trained {'+'.join(model_families)} "
+                  f"({int(ytr.sum())} train positives)")
 
     meta = {
         "feature_cols": feat_cols,

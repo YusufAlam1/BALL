@@ -21,6 +21,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
+from threadpoolctl import threadpool_limits
 
 from ball.pipeline import config, features, train
 
@@ -56,17 +57,21 @@ def evaluate(dataset: pd.DataFrame, art: Path) -> pd.DataFrame:
     # when the xgboost family was trained.
     families = [(fam, key) for fam, key in FAMILY_AUC_COL if fam in meta["model_families"]]
     results = []
-    for d in range(1, horizon + 1):
-        yte = Tdf[d].values[te]
-        row = {"forward_day": d, "test_pos_rate": float(yte.mean())}
-        for fam, key in families:
-            model = model_sets.get(fam, {}).get(d)
-            row[key] = (
-                float(roc_auc_score(yte, model.predict_proba(Xte)[:, 1]))
-                if model is not None and yte.sum() >= 1
-                else np.nan
-            )
-        results.append(row)
+    # Single-threaded BLAS for predict_proba so the scored probabilities — and
+    # therefore the ROC-AUC ranking — are identical regardless of core count,
+    # matching the single-threaded fits in train.py (see the note there).
+    with threadpool_limits(limits=1):
+        for d in range(1, horizon + 1):
+            yte = Tdf[d].values[te]
+            row = {"forward_day": d, "test_pos_rate": float(yte.mean())}
+            for fam, key in families:
+                model = model_sets.get(fam, {}).get(d)
+                row[key] = (
+                    float(roc_auc_score(yte, model.predict_proba(Xte)[:, 1]))
+                    if model is not None and yte.sum() >= 1
+                    else np.nan
+                )
+            results.append(row)
     return pd.DataFrame(results)
 
 

@@ -5,6 +5,16 @@ on:
     branches: [main, dockerize]
   pull_request:
 
+# Pin BLAS/OpenMP to a single thread so LogisticRegression's lbfgs solver sums
+# in a fixed order and the frozen reference reproduces exactly on the runner.
+# The pipeline also pins this in-code (train.py / evaluate.py via threadpoolctl),
+# so this is a belt-and-suspenders backstop covering any BLAS call outside those
+# contexts. The frozen reference was generated under this single-threaded pin.
+env:
+  OMP_NUM_THREADS: "1"
+  OPENBLAS_NUM_THREADS: "1"
+  MKL_NUM_THREADS: "1"
+
 jobs:
   # Lint + unit tests + the full pipeline on the sample season, natively.
   # The evaluate step exits non-zero if the per-forward-day ROC-AUCs drift
@@ -52,7 +62,9 @@ jobs:
         run: docker build -t ball .
       - name: In-container smoke — bootstrap to evaluate
         run: |
-          docker run --rm ball bash -c "
+          docker run --rm \
+            -e OMP_NUM_THREADS=1 -e OPENBLAS_NUM_THREADS=1 -e MKL_NUM_THREADS=1 \
+            ball bash -c "
             python -m ball.pipeline.bootstrap &&
             python -m ball.pipeline.features --horizon 2 &&
             python -m ball.pipeline.train --horizon 2 &&
