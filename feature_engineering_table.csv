@@ -1,0 +1,50 @@
+Business Analytics Learning Lab,,,,,,
+Feature Engineering Table,,,,,,
+,,,,,,
+,,,,,,
+,,,,,,
+feature_name,description,data_type,example,do we have it?,how can we get it?,How important is it? (1 - 10)
+player_height,"in inches, with shoes on",double (2f),74.51,Y,BALL.db anthro table (originally from nba_api player_anthro_endpoint),"(7) Decently important, I would assume player size is an indiactor of their likelness to get injured (bigger = more likely), taller players are usually more injury prone."
+player_age,Age of the player (In DAYS) & Relative to the game_date,integer,9125,N,"Extract the Birthdate of a player from ""nba_api.stats.endpoints.commonplayerinfo"" and then use that to calculate their actual age ","(7) The older a player is, likely the more prone to injuries they are"
+player_weight,weight in pounds (lbs),double (2f),220.5,Y,Ball.db anthro table (WEIGHT column),"(7) Heavier players likely have higher injury risk due to having more stress on joints. Also, very light players might be injury prone due to not having enough meat on their bones"
+player_body_fat_pct,Body fat percentage (0 - 100%),double (2f),8.5,Y,Ball.db anthro table (BODY_FAT_PCT column),"(8.5) Very similar to BMI, but body fat percentage directly measures fat mass, making it a more accurate health indicator, whereas BMI can misclassify individuals as overweight (muscular) or ""normal weight obese"" (low muscle, high fat) THIS IS MUCH MORE ACCRUATE THAN BMI"
+historical_injury_count,Total number of injuries in player's career,integer,12,Y,BALL.db player_injury_profile table (injury_count column),(9.5) Players with more injuries are certainly more likely to get injured again (i.e they are injury prone like Anthony Davis)
+historical_total_days_out,Total days missed due to injuries in career,integer,100,Y,"Ball,db player_injury_profile table (total_days_out column)","(8) Cumulative injury burden is likely a strong indicator; however, we need to keep in mind of edge case players who face one big injury in their career that might cause them to miss many many days; but in reality, they aren't actually injury prone. "
+season_avg_minutes,Average minutes played over the entire season to that point,double (2f),28.61,N,Obtain from nba_api playergamelogs and take the AVG(MIN) across all their games played that season. Or refer to basektball refernce and scrape that,(8) Average minutes throughout the season is needed and we also need this to compute the minute_spike below in this table
+days_since_last_injury,Days since player's last injury,integer,30,N,"This is dependent on our injury_list table which at times is a little wonky. However, if we wanted to grab the most recent injury of a player, we'd do: ""SELECT PLAYER_ID, MAX(Date) AS max_injury_date FROM injury_list GROUP BY PLAYER_ID;""  THIS QUERY GIVES THE MOST RECENT DATE OUT FOR ALL PLAYERS, HOWEVER, IT DOES NOT GUARANTEE THAT THE REASONING FOR THE PLAYER BEING OUT IS DUE TO ""Injury""!!!!!!!!","(8) Recent injuries increase risk of a player being injured again. If a player was recently injured but comes back to play quite quickly, then they are likely to probably get injured again."
+days_out_last_X_days,Total days out due to injury in the last X days,integer,4,N,?,"(9.5) Similar reasoning that above, but instead of counting number of injuries, we count the days out"
+recent_injury_severity,Severity of most recent injury (days out),integer,15,N,Would be something similar to the injury_count_last_X_days query from above.,(8) Recent severe injuries would increase risk
+avg_minutes_last_X_days,average minutes played per game in last X days,double (2f),34.83,N,Obtain from nba_api PlayerGameLog endpoint then aggregate AVG(MIN) for games in last X days,(9) High minutes averaged = fatigue = injury
+total_minutes_last_X_days,cumulative minutes played in last X days,double (2f),162.21,N,Obtain from nba_api PlayerGameLog then SUM(minutes) across the last X games,(9) This is the total workload burden (not just average) because you have to consider situations where for example Players with 4 games of 38 min vs 7 games of 25 min - both avg ~33 MPG but very different total load
+minutes_spike_last_X_days,A % increase/decrease of minutes played by a player relative to their average minutes played,double (2f),20.12,N,Obtain from nba_api PlayerGameLog then do: ((avg_minutes_last_X_days - season_avg_minutes) / season_avg_minutes) * 100,(9) Sudden workload changes can impact the injury risk for a player as they are not accustomed to the increase workload
+games_played_last_X_days,number of games played in last X days,integer,4,N,Obtain from nba_api PlayerGameLog then COUNT consecutive game dates,(8) More frequently played games would affect recovery time for a player
+back_to_back_games_last_X_days,"number of back2back games in the last X days for the player (i.e  if a player has a back-to-back, this counts as 1 set of back-to-back games)",integer,3,N,Obtain from nba_api PlayerGameLog then COUNT consecutive game dates,(7) Back to backs are known as high-injury risk periods due to a lack of rest for players
+avg_distance_traveled_last_X_days,Average distance traveled per game in last X das (miles),double (2f),2.8,Y,Maybe calculate with sportsuv/GPS stuff (Not sure how obtainable this is with the data we currently have) ??? COULD ALSO MAYBE USE leaguedashptstats endpoint FROM NBA API,(8.5) High distance means more fatigue
+avg_speed_last_X_days,Average velocity during games in last X days (mph),double (2f),4.2,Y,Maybe calculate with sportsuv/GPS stuff (Not sure how obtainable this is with the data we currently have) ??? COULD ALSO MAYBE USE leaguedashptstats endpoint FROM NBA API,(8.5) Higher speed means quicker movements which. is a measure of intensity. Higher intensity leads to injury.
+avg_fga_last_X_days,Average field goals attempted last X days,double (2f),12.6,N,Obtain from nba_api PlayerGameLog then just take average of all FGA from last X games,(5-8) This was the 2nd most impactful metric for predicting injury risk in the random forest model of this article https://www.scirp.org/journal/paperinformation?paperid=104074
+avg_3pa_last_X_days,Average 3 pointers attempeted last X days,double (2f),4.1,N,Obtain from nba_api PlayerGameLog then just take average of all 3pt attempts from last X games,(5-8) This was the 1st most impactful metric for predicting injury risk in the random forest model of this article https://www.scirp.org/journal/paperinformation?paperid=104074
+drives_per_game_last_X_days,"Average ""drives"" a player takes [per game",double (2f),20.4,N,?,"(5-8) Drives are high-accelration, sometimes high-contact actions, and are known as the highest injury risk play type"
+fg_pct_change_last_X_days,The difference between recent FG% and season average FG% (%),double (2f),6.32,N,"Obtain from nba_api PlayerGameLog endpoint then do ((FG%_last_X - FG%_season) / FG%_season) * 100. (If you get an output of like -12.5, this means FG% dropped 12.5% relative to season average)",(5-8) This article https://www.scirp.org/journal/paperinformation?paperid=104074 shows that a decline in recent player performance helps suggest injury risk is growing
+X_lookback_window,Number of days in our lookback window (Variable X) ,integer,30,N,This is an input parameter from the person using the model,(10) Definess the prediction target window
+Y_prediciton_window,Number of days ahead to preict injury likelihood (Variable Y),integer,5,N,This is an input parameter from the person using the model,(10) Defines how far forward in future we predict
+injury_likelihood_next_Y_days,Probability of injury in next Y days (target variable),??? (double for % Or Binary 1/0),???,N,This is the target output,(10) its the output
+,,,,,,
+,,,,,,
+,,,,,,
+player_strain,,,,,,
+,,,,,,
+,,,,,,
+,,,,,,
+,,,,,,
+,,,,,,
+,,,,,,
+,,,,,,
+,,,,,,
+"An additional table of interesting features/metrics that might be useful for our model (Note: restricted_area_attempts_last_X_days and paint_attempts_last_X_days kind of overlap, so it might not be the best idea for our model to include both features)",,,,,,
+,,,,,,
+feature_name,description,data_type,example,do we have it?,how can we get it?,How important is it? (1 - 10)
+restricted_area_attempts_last_X_days,Total number of shots in the Restricted Area by the NBA player over their last X days ,integer,22,N,From the endpoint in nbaAPI called shotchartdetail. Would require a query along the lines of SELECT COUNT(*) FROM <tableName> WHERE SHOT_ZONE_BASIC = 'Restricted Area',"(7.5-8) Restricted area = highest contact zone in NBA. More attempts in Restricted Area = more collisions, bumps, and physical battles increasing injury risk."
+paint_attempts_last_X_days,Total number of shots in the Paint by the NBA player over their last X days (Note: The paint contatins the Restricted Area; the Paint is essentially the entire rectangle onder the basket),integer,50,N,"From the endpoint in nbaAPI called shotchartdetail. Would require a query along the lines of SELECT COUNT(*) 
+FROM <tableName>
+WHERE SHOT_ZONE_BASIC IN ('Restricted Area', 'In The Paint (Non-RA)')","(7.5-8) This is more general than just using the Restricted Area, but it still might be worth using over the Restricted Area Only metric because contacts tends to occur anywhere in the paint, and it is also where players tend to be moving at their fastest speed due to layups / drives"
+tight_defense_shots_last_X_days,% of shots taken by an NBA player where the opposing defense is 0-4 ft away from the NBA player once they release their shot attempt,double (2f),17,N ,?,"(8) If a player is commonly taking shots that are contested, they are at a higher likelyhood of experiencing contact from the opposing defender; thus resulting in higher injury risk."

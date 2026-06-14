@@ -7,6 +7,7 @@ Runs entirely from local CSVs (no database required):
 
 Produces:
   1. V1 game-level classification baseline (the "naive" approach the README pivots away from)
+from threadpoolctl import threadpool_limits
   2. V2 rolling-window models: per-forward-day ROC-AUC for LogReg vs GradientBoosting
   3. Figures saved to docs/presentation/figures/ for direct drop-in to slides
   4. A results table printed to stdout and written to docs/presentation/v2_results.csv
@@ -188,8 +189,9 @@ def evaluate_v2(Xdf, Tdf, dser):
             row.update({"lr_auc": np.nan, "gb_auc": np.nan})
             results.append(row)
             continue
-        lr = LogisticRegression(max_iter=2000, class_weight="balanced", random_state=RANDOM_STATE)
-        lr.fit(Xtr, ytr)
+        with threadpool_limits(limits=1):
+            lr = LogisticRegression(max_iter=2000, class_weight="balanced", random_state=RANDOM_STATE)
+            lr.fit(Xtr, ytr)
         row["lr_auc"] = float(roc_auc_score(yte, lr.predict_proba(Xte)[:, 1]))
 
         gb = GradientBoostingClassifier(random_state=RANDOM_STATE)

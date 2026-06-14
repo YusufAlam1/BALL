@@ -1,0 +1,32 @@
+feature_name,importance,in_engineering_table,in_current_model,model_column,status,notes
+player_height,7,Y,Y,height_wo_shoes,✅ In model,Aggregated as height_wo_shoes_mean/std/min/max. Note: column is height WITHOUT shoes.
+player_age,7,Y,Y,age,✅ In model,Aggregated as age_mean/std/min/max.
+player_weight,7,Y,Y,weight,✅ In model,Aggregated as weight_mean/std/min/max.
+player_body_fat_pct,8.5,Y,Y,body_fat_pct,✅ In model,Aggregated as body_fat_pct_mean/std/min/max.
+historical_injury_count,9.5,Y,N,—,⚠️ Data gap,Engineering table references player_injury_profile table which is not present in the local sample dataset. Exists in Supabase. High-priority gap.
+historical_total_days_out,8,Y,N,—,⚠️ Data gap,Same as above — requires player_injury_profile from Supabase.
+season_avg_minutes,8,N,N,—,❌ Not available,Requires full season-to-date aggregate per player. Not in current sample data.
+days_since_last_injury,8,N,N,—,❌ Not available,Requires per-player injury event history. Not in current sample data.
+days_out_last_X_days,9.5,N,N,—,❌ Not available,Requires per-injury duration records. Not in current sample data.
+recent_injury_severity,8,N,N,—,❌ Not available,Derived from injury duration records. Not in current sample data.
+avg_minutes_last_X_days,9,N,Y,minutes,✅ In model,minutes_mean/std/min/max over the 14-day window.
+total_minutes_last_X_days,9,N,Y,minutes_total,✅ Added,Sum of minutes over the 14-day lookback window. Added in this model run.
+minutes_spike_last_X_days,9,N,N,—,❌ Not available,Requires season_avg_minutes as baseline — not available in sample data.
+games_played_last_X_days,8,N,Y,games_played_count,✅ Added,Count of game rows in the 14-day lookback window. Added in this model run.
+back_to_back_games_last_X_days,7,N,Y,back_to_back_count,✅ Added,Count of consecutive game-date pairs (1-day gap) within the lookback window. Added in this model run.
+avg_distance_traveled_last_X_days,8.5,Y,Y,distance,✅ In model,Aggregated as distance_mean/std/min/max.
+avg_speed_last_X_days,8.5,Y,Y,speed,✅ In model,Aggregated as speed_mean/std/min/max.
+avg_fga_last_X_days,5-8,N,N,—,❌ Not available,FGA not in current model input CSV.
+avg_3pa_last_X_days,5-8,N,N,—,❌ Not available,3PA not in current model input CSV.
+drives_per_game_last_X_days,5-8,N,N,—,❌ Not available,Drive data not in current model input.
+fg_pct_change_last_X_days,5-8,N,N,—,❌ Not available,Requires FG% per game and season baseline. Not in current data.
+usagepercentage (not in table),—,—,Y,usagepercentage,ℹ️ In model / not in table,Aggregated as mean/std/min/max. Related to possessions. Not listed in engineering table.
+pace (not in table),—,—,Y,pace,ℹ️ In model / not in table,Aggregated as mean/std/min/max. Not listed in engineering table.
+possessions (not in table),—,—,Y,possessions,ℹ️ In model / not in table,Top SHAP driver (possessions_max). Not listed in engineering table — recommend adding.
+wingspan (not in table),—,—,Y,wingspan,ℹ️ In model / not in table,Anthropometric feature. Not listed in engineering table.
+standing_reach (not in table),—,—,Y,standing_reach,ℹ️ In model / not in table,Anthropometric feature. Not listed in engineering table.
+hand_length (not in table),—,—,Y,hand_length,ℹ️ In model / not in table,Anthropometric feature. Not listed in engineering table.
+hand_width (not in table),—,—,Y,hand_width,ℹ️ In model / not in table,Anthropometric feature. Not listed in engineering table.
+restricted_area_attempts_last_X_days,7.5-8,N,N,—,❌ Not available,Shot chart data not in current model input.
+paint_attempts_last_X_days,7.5-8,N,N,—,❌ Not available,Shot chart data not in current model input.
+tight_defense_shots_last_X_days,8,N,N,—,❌ Not available,Contested shot data not in current model input.

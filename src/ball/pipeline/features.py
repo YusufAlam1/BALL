@@ -21,14 +21,20 @@ from ball.pipeline import config, data, targets
 
 AGG_STATS = ["mean", "std", "min", "max"]
 
+# Derived window-level features from the feature engineering table that are
+# computable from current data without external sources.
+EXTRA_FEATURES = ["games_played_count", "minutes_total", "back_to_back_count"]
+
 
 def feature_columns(df_columns) -> list:
-    """Stat-major aggregate column order: <feature>_mean … then _std, _min, _max."""
+    """Stat-major aggregate column order: <feature>_mean … then _std, _min, _max,
+    followed by derived window-level counts."""
     cols = []
     for stat in AGG_STATS:
         for c in data.RAW_FEATURES:
             if c in df_columns:
                 cols.append(f"{c}_{stat}")
+    cols.extend(EXTRA_FEATURES)
     return cols
 
 
@@ -42,6 +48,24 @@ def aggregate_window(window: pd.DataFrame, present: list) -> dict:
             v = agg.loc[stat, c]
             feat[f"{c}_{stat}"] = 0.0 if pd.isna(v) else float(v)
     return feat
+
+
+def compute_extra_features(window: pd.DataFrame) -> dict:
+    """Derived window-level counts: games played, total minutes, back-to-back sets."""
+    games_played = float(len(window))
+    minutes_total = float(window["minutes"].sum()) if "minutes" in window.columns else 0.0
+
+    # Back-to-back: count pairs of consecutive game dates separated by exactly 1 day.
+    back_to_back = 0
+    if "game_date" in window.columns and len(window) > 1:
+        dates = window["game_date"].sort_values().reset_index(drop=True)
+        back_to_back = int((dates.diff().dt.days == 1).sum())
+
+    return {
+        "games_played_count": games_played,
+        "minutes_total": minutes_total,
+        "back_to_back_count": float(back_to_back),
+    }
 
 
 def build_dataset(df: pd.DataFrame, lookback_days: int, forward_days: int) -> pd.DataFrame:
@@ -61,7 +85,7 @@ def build_dataset(df: pd.DataFrame, lookback_days: int, forward_days: int) -> pd
             window = grp.loc[mask]
             if window.empty:
                 continue
-            rows.append(aggregate_window(window, present))
+            rows.append({**aggregate_window(window, present), **compute_extra_features(window)})
             target_rows.append(targets.build_target_row(row_date, injury_dates, forward_days))
             dates.append(row_date)
             pids.append(pid)
